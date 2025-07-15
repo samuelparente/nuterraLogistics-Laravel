@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="Painel de administração da Nuterra">
+	<meta name="author" content="Samuel Parente">
+	<meta name="keywords" content="">
+
+	<link rel="preconnect" href="https://fonts.gstatic.com">
+    <link rel="shortcut icon" href="{{ asset('images/general/logo_pv.ico') }}"/>
+   
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- jQuery UI CSS -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <!-- jQuery UI JS -->
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    {{-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>--}}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet"> 
+
+    <!-- Cropper 
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    -->
+     <!-- select2 -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+	<title>{{ config('app.name') }}</title>
+    <!-- Favicons -->
+    <link href="{{ asset('images/general/logo_pv.ico') }}" rel="icon">
+    <link href="{{ asset('images/general/logo_pv.ico') }}" rel="apple-touch-icon">
+	<link href="{{ asset('assets/css/app-admin.css') }}" rel="stylesheet">
+    <link href="{{ asset('assets/css/main.css') }}" rel="stylesheet">
+    {{--bandeiras--}}
+    @vite(['resources/css/icons.css'])
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="wrapper">
+        <nav id="sidebar" class="sidebar js-sidebar">
+            <div class="sidebar-content js-simplebar">
+                <a class="sidebar-brand" href="{{ route('backoffice.dashboard')}}">
+                    <img class="logo-admin" src="{{ asset('images/general/logo_pv.ico') }}" alt="logotipo da nuterra">
+                    <span class="align-middle">{{ config('app.name') }}</span> 
+                    {{-- @if(Auth::user()->type_id === 4)
+                        <span class="align-middle institution-name super-admin">SUPER ADMIN - TODAS AS PERMISSÕES</span>
+                    @else
+                        <span class="align-middle institution-name">{{ Auth::user()->institution->name }}</span>   
+                    @endif 
+                    <span class="align-middle institution-name">NUTERRA - Administrador</span>--}}
+
+                </a>
+        
+                <ul class="sidebar-nav">
+                    {{-- Dashboard --}}
+                    <li class="sidebar-item">
+                        <a data-bs-toggle="collapse" href="#dashboardMenu" class="sidebar-header" aria-expanded="false">
+                            <i class="align-middle" data-feather="eye"></i> <span class="align-middle">Dashboard</span>
+                        </a>
+                        <ul class="collapse list-unstyled sidebar-submenu" id="dashboardMenu">
+                            <li>
+                                <a class="sidebar-link" href="{{ route('backoffice.dashboard') }}">Visão Geral</a>
+                            </li>
+                        
+                        </ul>
+                    </li>
+
+                    {{-- lojas --}}
+                    @hasanyrole('admin|super-admin|gestor')
+                    <li class="sidebar-item">
+                        <a data-bs-toggle="collapse" href="#lojasMenu" class="sidebar-header" aria-expanded="false">
+                            <i class="align-middle" data-feather="home"></i> <span class="align-middle">Lojas</span>
+                        </a>
+                        <ul class="collapse list-unstyled sidebar-submenu" id="lojasMenu">
+                            <li>
+                                <a class="sidebar-link" href="{{ route('stores.store.create') }}">Criar Nova</a>
+                            </li>
+                            <li>
+                                <a class="sidebar-link" href="{{ route('stores.index') }}">Ver Todas</a>
+                            </li>
+                        </ul>
+                    </li>
+                    @endhasanyrole
+
+
+                    @hasanyrole('admin|super-admin')
+                    <li class="sidebar-header">
+                        Utilizadores
+                    </li>
+                        <li class="sidebar-item ">{{-- active --}}
+                        <a class="sidebar-link" href="{{ route('users.user.create') }}">
+                        <i class="align-middle" data-feather="user-plus"></i> <span class="align-middle">Criar Novo</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('users.index') }}">
+                    <i class="align-middle" data-feather="users"></i> <span class="align-middle">Ver Todos</span>
+                    </a>
+                    </li>
+                    @endhasanyrole
+                
+                    <li class="sidebar-header">
+                        Encomendas
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                            <i class="align-middle" data-feather="list"></i> <span class="align-middle">Ver Todas</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-header">
+                        Clientes
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('clients.client.create') }}">
+                            <i class="align-middle" data-feather="list"></i> <span class="align-middle">Criar Novo</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('clients.index') }}">
+                            <i class="align-middle" data-feather="list"></i> <span class="align-middle">Ver Todos</span>
+                        </a>
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a data-bs-toggle="collapse" href="#produtosMenu" class="sidebar-header" aria-expanded="false">
+                            <i class="align-middle" data-feather="package"></i> <span class="align-middle">Produtos</span>
+                        </a>
+                        <ul class="collapse list-unstyled sidebar-submenu" id="produtosMenu">
+                            <li>
+                                <a class="sidebar-link" href="">Criar Novo</a>
+                            </li>
+                            <li>
+                                <a class="sidebar-link" href="">Ver Todos</a>
+                            </li>
+                        </ul>
+                    </li>
+
+
+                    <li class="sidebar-header">
+                        Marketing
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Criar Promoção</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Criar Oferta</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Criar Cupões</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-header">
+                        Estatísticas
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Vendas</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Encomendas</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Acessos</span>
+                        </a>
+                    </li>
+                        <li class="sidebar-header">
+                        Configurações
+                    </li>
+
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Homepage</span>
+                        </a>
+                    </li>
+                    @role('super-admin')
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Loja</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="">
+                        <i class="align-middle" data-feather="clipboard"></i> <span class="align-middle">Gerais</span>
+                        </a>
+                    </li>
+                    @endrole
+                </ul>
+
+                
+            </div>
+        </nav>
+
+        <div class="main">
+            <nav class="navbar navbar-expand navbar-light navbar-bg">
+                <a class="sidebar-toggle js-sidebar-toggle">
+            <i class="hamburger align-self-center"></i>
+        </a>
+
+                <div class="navbar-collapse collapse">
+                    <ul class="navbar-nav navbar-align">
+                        
+                        
+                        {{-- <li class="nav-item dropdown">
+                            <a class="nav-icon dropdown-toggle" href="#" id="alertsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="position-relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bell align-middle">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                    <!-- Exibir o número de notificações não lidas -->
+                                    <span class="indicator">{{ $unreadNotificationsCount }}</span>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end py-0" aria-labelledby="alertsDropdown">
+                                <div class="dropdown-menu-header">
+                                    {{ $unreadNotificationsCount }} New Notifications
+                                </div>
+                                <div class="list-group">
+                                    @foreach ($notifications as $notification)
+                                        <a href="{{ route('notifications.show', $notification->id) }}" class="list-group-item">
+                                            <div class="row g-0 align-items-center">
+                                                <div class="col-2">
+                                                    <!-- Ícone de notificação dependendo do tipo -->
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-alert-circle text-danger">
+                                                        <circle cx="12" cy="12" r="10"></circle>
+                                                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                                    </svg>
+                                                </div>
+                                                <div class="col-10">
+                                                    <div class="text-dark">{{ $notification->title }}</div>
+                                                    <div class="text-muted small mt-1">{{ $notification->message }}</div>
+                                                    <div class="text-muted small mt-1">{{ $notification->created_at->diffForHumans() }}</div>
+                                                </div>
+                                            </div>
+                                        </a>
+                                    @endforeach
+                                </div>
+                                <div class="dropdown-menu-footer">
+                                    <a href="{{ route('events.all') }}" class="text-muted">Show all notifications</a>
+                                </div>
+                            </div>
+                        </li>
+                        
+                            --}}
+
+                            <li class="nav-item dropdown">
+                            <a class="nav-icon dropdown-toggle" href="#" id="alertsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="position-relative">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bell align-middle">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                    <span class="indicator">3</span>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end py-0" aria-labelledby="alertsDropdown">
+                                <div class="dropdown-menu-header">
+                                    {{-- @php
+                                        $count = count($notifications);
+                                    @endphp
+
+                                    @if($count === 0)
+                                        Sem Novos Eventos
+                                    @elseif($count === 1)
+                                    {{ $count }} Novo Evento
+                                    @else
+                                        {{ $count }} Novos Eventos
+                                    @endif --}}
+                                </div>
+                                <div class="list-group">
+                                    {{-- @foreach($notifications as $notification)
+                                        @if ($notification->event)
+                                            <a href="{{ route('events.event.show', ['id' => $notification->event->id]) }}" class="list-group-item">
+                                                <div class="row g-0 align-items-center">
+                                                    <div class="col-2">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bell text-warning">
+                                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                                        </svg>
+                                                    </div>
+                                                    <div class="col-10">
+                                                        <div class="text-dark">{{ $notification->data['message'] }}</div>
+                                                        <div class="text-muted small mt-1">{{ $notification->created_at->diffForHumans() }}</div>
+                                                    </div>
+                                                </div>
+                                            </a>
+                                        @endif
+                                    @endforeach --}}
+
+                                </div>
+                                <div class="dropdown-menu-footer">
+                                    <a href="" class="text-muted">Ver todos os Eventos</a>
+                                </div>
+                            </div>
+                        </li>
+                        
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-icon dropdown-toggle" href="#" id="messagesDropdown" data-bs-toggle="dropdown">
+                                <div class="position-relative">
+                                    <i class="align-middle" data-feather="message-square"></i>
+                                </div>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end py-0" aria-labelledby="messagesDropdown">
+                                <div class="dropdown-menu-header">
+                                    <div class="position-relative">
+                                        4 New Messages
+                                    </div>
+                                </div>
+                                <div class="list-group">
+                                    <a href="#" class="list-group-item">
+                                        <div class="row g-0 align-items-center">
+                                            <div class="col-2">
+                                                <img src="img/avatars/avatar-5.jpg" class="avatar img-fluid rounded-circle" alt="Vanessa Tucker">
+                                            </div>
+                                            <div class="col-10 ps-2">
+                                                <div class="text-dark">Vanessa Tucker</div>
+                                                <div class="text-muted small mt-1">Nam pretium turpis et arcu. Duis arcu tortor.</div>
+                                                <div class="text-muted small mt-1">15m ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#" class="list-group-item">
+                                        <div class="row g-0 align-items-center">
+                                            <div class="col-2">
+                                                <img src="img/avatars/avatar-2.jpg" class="avatar img-fluid rounded-circle" alt="William Harris">
+                                            </div>
+                                            <div class="col-10 ps-2">
+                                                <div class="text-dark">William Harris</div>
+                                                <div class="text-muted small mt-1">Curabitur ligula sapien euismod vitae.</div>
+                                                <div class="text-muted small mt-1">2h ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#" class="list-group-item">
+                                        <div class="row g-0 align-items-center">
+                                            <div class="col-2">
+                                                <img src="img/avatars/avatar-4.jpg" class="avatar img-fluid rounded-circle" alt="Christina Mason">
+                                            </div>
+                                            <div class="col-10 ps-2">
+                                                <div class="text-dark">Christina Mason</div>
+                                                <div class="text-muted small mt-1">Pellentesque auctor neque nec urna.</div>
+                                                <div class="text-muted small mt-1">4h ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    <a href="#" class="list-group-item">
+                                        <div class="row g-0 align-items-center">
+                                            <div class="col-2">
+                                                <img src="img/avatars/avatar-3.jpg" class="avatar img-fluid rounded-circle" alt="Sharon Lessman">
+                                            </div>
+                                            <div class="col-10 ps-2">
+                                                <div class="text-dark">Sharon Lessman</div>
+                                                <div class="text-muted small mt-1">Aenean tellus metus, bibendum sed, posuere ac, mattis non.</div>
+                                                <div class="text-muted small mt-1">5h ago</div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="dropdown-menu-footer">
+                                    <a href="#" class="text-muted">Show all messages</a>
+                                </div>
+                            </div>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <!-- Ícone para telas pequenas -->
+                            <a class="nav-icon dropdown-toggle d-inline-block d-sm-none" href="#" data-bs-toggle="dropdown">
+                                <i class="align-middle" data-feather="settings"></i>
+                            </a>
+
+                            <!-- Nome e Avatar -->
+                            <a class="nav-link dropdown-toggle d-none d-sm-inline-block" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img 
+                                    src="{{ Auth::user()->avatar 
+                                        ? asset('storage/images/general/avatars/' . Auth::user()->avatar) 
+                                        : asset('images/general/avatars/avatar_default.png') }}" 
+                                    class="avatar-profile-mini" 
+                                    alt="Avatar">
+
+                                <span class="text-dark">{{ Auth::user()->name }}</span>
+                            </a>
+
+                        
+                            <!-- Dropdown Menu -->
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ route('profiles.profile.show',Auth::user()->id) }}"><i class="align-middle me-1" data-feather="user"></i> Perfil</a></li>
+                                {{-- <li><hr class="dropdown-divider"></li> --}}
+                                {{-- <li><a class="dropdown-item" href="#"><i class="align-middle me-1" data-feather="settings"></i> Definições e Privacidade</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="align-middle me-1" data-feather="help-circle"></i> Centro de Ajuda</a></li> --}}
+                                {{-- <li><hr class="dropdown-divider"></li> --}}
+                                <li>
+                                    <form action="{{ route('logout') }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="align-middle me-1" data-feather="log-out"></i> Sair
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            {{-- empresa-cargo --}}
+            <div class="role" style="padding:10px;"> 
+                <div class="container-fluid p-0">
+                    <span class="align-middle" style="color:#9c9c9c;font-size:0.9rem;">
+                        <b style="color:#19c1b6;">{{ config('app.name') }}</b> | {{ Auth::user()->roleLabel }}
+                    </span> 
+                </div>
+            </div>
+            {{-- conteúdo admin --}}
+            @yield('content_admin') 
+            {{-- footer admin --}}
+            @include('layouts.admin.partials.footer_admin')
+        </div>
+    </div>
+
+</body>
+    
+<script src="{{ asset('assets/js/app.js') }}"></script>
+ <!-- Main JS File -->
+ <script src="{{ asset('assets/js/main.js') }}"></script>
+
+</html>
