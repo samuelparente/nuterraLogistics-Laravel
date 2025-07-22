@@ -13,6 +13,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const corPrincipal = getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim();
 
+    
     // Flash success
     if (window.flashSuccess) {
         Swal.fire({
@@ -30,6 +31,19 @@ window.addEventListener('DOMContentLoaded', () => {
             title: 'Erro',
             text: window.flashError,
             confirmButtonColor: corPrincipal,
+        });
+    }
+
+    window.showInfoSwal = function (title, htmlContent) {
+        Swal.fire({
+            title: title,
+            html: htmlContent,
+            icon: 'info',
+            confirmButtonText: 'Fechar',
+            confirmButtonColor: corPrincipal,
+            customClass: {
+                popup: 'text-start'
+            }
         });
     }
 
@@ -456,3 +470,184 @@ document.addEventListener('DOMContentLoaded', () => {
         imageInput.addEventListener('change', handleImageCrop);
     }
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+
+    // Toggle all checkboxes
+    selectAllCheckbox.addEventListener('change', function () {
+        const checked = this.checked;
+
+        rowCheckboxes.forEach(cb => {
+            cb.checked = checked;
+            const row = cb.closest('tr');
+            row.classList.toggle('selected', checked);
+        });
+    });
+
+    // Toggle row style when individual checkbox is changed
+    rowCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function () {
+            const row = cb.closest('tr');
+            row.classList.toggle('selected', cb.checked);
+        });
+
+        // Aplica estilo inicialmente se estiver já marcado
+        if (cb.checked) {
+            cb.closest('tr').classList.add('selected');
+        }
+    });
+});
+
+document.querySelectorAll('.btn-add-to-order').forEach(button => {
+    button.addEventListener('click', async function () {
+        const itemId = this.dataset.itemId;
+        const supplierId = this.dataset.supplierId;
+        const barCode = this.dataset.barCode;
+        const productName = this.dataset.productName;
+        const brandId = this.dataset.brandId;
+        const url = this.dataset.url;
+
+        const quantityInput = document.querySelector(`input[name="suggested_order_qty[${itemId}]"]`);
+        const quantity = parseInt(quantityInput?.value || 0);
+
+        if (!quantity || quantity <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Quantidade inválida',
+                text: 'Introduza uma quantidade válida para adicionar.',
+                confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim(),
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({
+                    products: [{
+                        item_id: itemId,
+                        quantity: quantity,
+                        bar_code: barCode,
+                        product_name: productName,
+                        supplier_id: supplierId,
+                        brand_id: brandId
+                    }]
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Adicionado com sucesso',
+                    text: result.message,
+                    confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim(),
+                }).then(() => {
+                    window.location.reload();
+                });
+
+            } else {
+                throw new Error(result.message || 'Erro ao adicionar produto');
+            }
+
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: error.message,
+                confirmButtonColor: getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim(),
+            });
+        }
+
+
+    });
+});
+
+document.getElementById('btn-add-selected')?.addEventListener('click', async function () {
+    const url = this.dataset.url;
+    const selectedRows = document.querySelectorAll('.row-checkbox:checked');
+    const corPrincipal = getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim();
+
+    if (!selectedRows.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Nenhum produto selecionado',
+            text: 'Selecione pelo menos um produto para adicionar.',
+            confirmButtonColor: corPrincipal,
+        });
+        return;
+    }
+
+    const products = [];
+
+    selectedRows.forEach(checkbox => {
+        const row = checkbox.closest('tr');
+        const itemId = checkbox.value;
+        const quantityInput = row.querySelector(`input[name="suggested_order_qty[${itemId}]"]`);
+        const quantity = parseInt(quantityInput?.value || 0);
+
+        if (!quantity || quantity <= 0) return; // Ignora quantidades inválidas
+
+        products.push({
+            item_id: itemId,
+            quantity: quantity,
+            bar_code: row.querySelector('button.btn-add-to-order')?.dataset.barCode || '',
+            product_name: row.querySelector('button.btn-add-to-order')?.dataset.productName || '',
+            supplier_id: row.querySelector('button.btn-add-to-order')?.dataset.supplierId || '',
+            brand_id: row.querySelector('button.btn-add-to-order')?.dataset.brandId || ''
+        });
+    });
+
+    if (products.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Quantidade inválida',
+            text: 'Todos os produtos selecionados têm quantidade inválida.',
+            confirmButtonColor: corPrincipal,
+        });
+        return;
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            body: JSON.stringify({
+                products: products,
+                mass: true
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Adicionados com sucesso!',
+                text: result.message,
+                confirmButtonColor: corPrincipal,
+            }).then(() => window.location.reload());
+        } else {
+            throw new Error(result.message || 'Erro ao adicionar produtos.');
+        }
+
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: error.message,
+            confirmButtonColor: corPrincipal,
+        });
+    }
+});
+

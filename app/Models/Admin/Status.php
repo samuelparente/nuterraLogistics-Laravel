@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
@@ -8,10 +9,14 @@ class Status extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['code', 'label_pt'];
+    protected $fillable = [
+        'code',
+        'label_pt',
+        'color',
+    ];
 
-    public function stores()
+    public function orders()
     {
-        return $this->hasMany(Store::class, 'status_id');
+        return $this->hasMany(Order::class);
     }
 }

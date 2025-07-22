@@ -2604,7 +2604,7 @@ section,
   height: 100%;
   object-fit: cover;
 }
-.icon-edit .icon-delete .icon-eye .icon-people{
+.icon-edit .icon-delete .icon-view .icon-eye .icon-people{
   font-size: 1.5rem;
 }
 
@@ -2616,7 +2616,10 @@ section,
   color:rgb(53, 156, 55);
   margin-right: 10px;
 }
-
+.icon-view{
+  color:rgb(3, 45, 255);
+  margin-right: 10px;
+}
 .icon-edit{
   color:cornflowerblue;
   margin-right: 10px;
@@ -3205,4 +3208,79 @@ background-color: rgb(0, 132, 255);
     border-radius: 8px;
     border: 1px solid #ddd;
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+}
+.btn-floating-cart {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    z-index: 999;
+    background-color: #ffbb00;
+    color: #ffffff;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 22px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.btn-floating-cart:hover {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 22px;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  background-color: #ffbb00;
+    color: #ffffff;
+    transform: scale(1.1);
+}
+
+.btn-floating-cart .cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background-color: #dc3545; /* vermelho */
+    color: white;
+    border-radius: 5px;
+    font-size: 11px;
+    padding: 2px 6px;
+    line-height: 1;
+}
+
+/* Estilo para o checkbox */
+.custom-checkbox {
+    accent-color: #ffbb00; 
+    cursor: pointer;
+}
+
+/* Checkbox quando marcado */
+.custom-checkbox:checked {
+      accent-color: #ffbb00;
+}
+.table-icons{
+  font-size: 1.6rem;
+  color:#6c757d;
+}
+.table-icon-add .table-icon-remove{
+  font-size: 1.4rem;
+}
+.checkbox-large {
+    transform: scale(1.6);
+}
+.btn-add-to-order{
+  border-radius:4px;
+}
+.btn-remove-item-in-order{
+  border-radius:4px;
+}
+.table-condensed td,
+.table-condensed th {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
 }

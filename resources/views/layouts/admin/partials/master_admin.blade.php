@@ -42,6 +42,7 @@
     {{--bandeiras--}}
     @vite(['resources/css/icons.css'])
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
     <div class="wrapper">
@@ -72,9 +73,9 @@
                     @endhasanyrole
                     {{-- Encomenda a fornecedor --}}
                     <li class="sidebar-item">
-                        <a class="sidebar-link" href="{{ route('users.index') }}">
+                        <a class="sidebar-link" href="{{ route('orders.dashboard') }}">
                             <i class="align-middle menu-icons-color" data-feather="list"></i>
-                            <span class="align-middle">Pedido a Fornecedor</span>
+                            <span class="align-middle">Pedidos a Fornecedor</span>
                         </a>
                     </li>
                     {{-- Recepção de encomenda --}}
@@ -82,6 +83,13 @@
                         <a class="sidebar-link" href="{{ route('users.index') }}">
                             <i class="align-middle menu-icons-color" data-feather="package"></i>
                             <span class="align-middle">Receber Encomenda</span>
+                        </a>
+                    </li> 
+                    {{-- Bonificações --}}
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('bonuses.index') }}">
+                            <i class="align-middle menu-icons-color" data-feather="percent"></i>
+                            <span class="align-middle">Bonificações</span>
                         </a>
                     </li>                   
                 </ul>
@@ -145,7 +153,27 @@
                 </div>
             </div>
             {{-- conteúdo admin --}}
-            @yield('content_admin') 
+            @yield('content_admin')
+
+            {{-- carrinho do pedido --}}
+            @if ($openOrder)
+                <a href="{{ route('orders.order.edit') }}" 
+                class="btn btn-floating-cart shadow"
+                title="Ver Pedido Atual">
+                    <i class="bi bi-cart"></i>
+                    <span class="cart-badge">{{ $openOrder->orderItems->count() }}</span>
+                </a>
+            @else
+                <a href="javascript:void(0);" 
+                class="btn btn-floating-cart shadow disabled text-muted" 
+                title="Nenhum pedido aberto" 
+                style="pointer-events: none; background-color:#ffffff;">
+                    <i class="bi bi-cart"></i>
+                    <span class="cart-badge">0</span>
+                </a>
+            @endif
+
+ 
             {{-- footer admin --}}
             @include('layouts.admin.partials.footer_admin')
         </div>

@@ -274,6 +274,54 @@ return [
         ['label' => 'Editar Item', 'route' => null, 'icon' => 'bi-pencil'],
     ],
 
+    // Bonuses
+    'bonuses.index' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Bonificações', 'route' => 'bonuses.index', 'icon' => 'bi-percent'],
+        ['label' => 'Ver Todas', 'route' => null, 'icon' => 'bi-list'],
+    ],
+    'bonuses.bonus.create' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Bonificações', 'route' => 'bonuses.index', 'icon' => 'bi-percent'],
+        ['label' => 'Criar Nova', 'route' => null, 'icon' => 'bi-plus-circle'],
+    ],
+    'bonuses.bonus.edit' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Bonificações', 'route' => 'bonuses.index', 'icon' => 'bi-percent'],
+        ['label' => 'Editar Bonificação', 'route' => null, 'icon' => 'bi-pencil'],
+    ],
+
+    // Orders (Pedidos a fornecedor)
+    'orders.dashboard' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Pedidos', 'route' => 'orders.dashboard', 'icon' => 'bi-truck'],
+        ['label' => 'Visão Geral', 'route' => null, 'icon' => 'bi-speedometer2'],
+    ],
+
+    'orders.index' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Pedidos', 'route' => 'orders.index', 'icon' => 'bi-truck'],
+        ['label' => 'Ver Todos', 'route' => null, 'icon' => 'bi-list'],
+    ],
+
+    'orders.order.create' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Pedidos', 'route' => 'orders.index', 'icon' => 'bi-truck'],
+        ['label' => 'Criar Novo', 'route' => null, 'icon' => 'bi-plus-circle'],
+    ],
+
+    'orders.order.edit' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Pedidos', 'route' => 'orders.index', 'icon' => 'bi-truck'],
+        ['label' => 'Editar Pedido', 'route' => null, 'icon' => 'bi-pencil'],
+    ],
+
+    // Listagem dos produtos
+    'lists.index' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Pedidos', 'route' => 'orders.dashboard', 'icon' => 'bi-truck'],
+        ['label' => 'Listagens', 'route' => 'lists.index', 'icon' => 'bi-journal-text'],
+    ],
 
 
 ];

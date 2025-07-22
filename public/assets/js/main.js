@@ -478,20 +478,33 @@ function confirmDelete(personId) {
 
 })();
 
-function confirmDelete(personId) {
-  event.preventDefault();
-  Swal.fire({
-      title: "Eliminar Registo?",
-      text: "Esta ação não pode ser anulada!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Eliminar",
-      cancelButtonText: "Cancelar"
-  }).then((result) => {
-      if (result.isConfirmed) {
-          document.getElementById('delete-form-' + personId).submit();
-      }
-  });
-}
+// function confirmDelete(personId) {
+//   event.preventDefault();
+//   Swal.fire({
+//       title: "Eliminar Registo?",
+//       text: "Esta ação não pode ser anulada!",
+//       icon: "warning",
+//       showCancelButton: true,
+//       confirmButtonColor: "#d33",
+//       cancelButtonColor: "#3085d6",
+//       confirmButtonText: "Eliminar",
+//       cancelButtonText: "Cancelar"
+//   }).then((result) => {
+//       if (result.isConfirmed) {
+//           document.getElementById('delete-form-' + personId).submit();
+//       }
+//   });
+
+  
+// }
+// function showInfoSwal(title, htmlContent) {
+//       Swal.fire({
+//           title: title,
+//           html: htmlContent,
+//           icon: 'info',
+//           confirmButtonText: 'Fechar',
+//           customClass: {
+//               popup: 'text-start'
+//           }
+//       });
+//   }
