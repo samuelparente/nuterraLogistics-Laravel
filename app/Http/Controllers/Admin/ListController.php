@@ -41,12 +41,13 @@ class ListController extends Controller
         $filters = [
         'supplier_id' => $request->input('supplier_id'),
         'brand_id'    => $request->input('brand_id'),
+        'search'      => $request->input('search'),
         'start_date'  => $startDate,
         'end_date'    => $endDate,
     ];
 
 
-        if ($filters['supplier_id'] || $filters['brand_id']) {
+        if ($filters['supplier_id'] || $filters['brand_id'] || $filters['search']) {
             $products = $erpController->getProducts(new Request($filters));
 
             // Só ordena se houver produtos

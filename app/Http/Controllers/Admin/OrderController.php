@@ -8,10 +8,16 @@ use App\Models\Admin\Supplier;
 use App\Models\Admin\Brand;
 use App\Models\Admin\Order;
 use App\Models\Admin\OrderItem;
-
+use App\Exports\OrderExport;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Models\Admin\Status;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-
+use App\Mail\OrderFilesMail;
+use Illuminate\Support\Facades\Mail;
 
 class OrderController extends Controller
 {
@@ -28,16 +34,36 @@ class OrderController extends Controller
 
     public function edit(Request $request)
     {
-        $order = Order::whereHas('status', function ($query) {
-            $query->where('code', 'pending');
-        })->with(['items.brand'])->first();
+        $order = Order::whereHas('status', fn ($q) => $q->where('code', 'pending'))
+            ->with(['items.brand.bonuses', 'items.supplier.bonuses'])
+            ->first();
 
         if (!$order) {
             return redirect()->route('orders.index')->with('error', 'Nenhum pedido em aberto encontrado.');
         }
 
+        foreach ($order->items as $item) {
+            $brandBonuses = $item->brand?->bonuses;
+            $supplierBonuses = $item->supplier?->bonuses;
+
+            if ($brandBonuses && $brandBonuses->isNotEmpty()) {
+                // Prioriza o primeiro bónus da marca
+                $item->bonusLabel = $brandBonuses->first()?->name;
+                $item->bonusTooltip = $brandBonuses->first()?->description ?? 'Sem descrição';
+            } elseif ($supplierBonuses && $supplierBonuses->isNotEmpty()) {
+                // Caso não exista bónus da marca, junta todos os do fornecedor
+                $item->bonusLabel = 'Bónus Fornecedor';
+                $item->bonusTooltip = $supplierBonuses->pluck('name')->implode(', ');
+            } else {
+                // Nenhum bónus
+                $item->bonusLabel = null;
+                $item->bonusTooltip = null;
+            }
+        }
+
         return view('layouts.admin.orders.edit', compact('order'));
     }
+
 
     public function createEmpty(Request $request)
     {
@@ -157,6 +183,81 @@ class OrderController extends Controller
             return redirect()->route('orders.dashboard')->with('success', 'Pedido eliminado com sucesso.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Erro ao eliminar o pedido: ' . $e->getMessage());
+        }
+    }
+
+
+    public function update(Request $request, Order $order)
+    {
+        try {
+            // Atualizar quantidades
+            if ($request->has('quantities')) {
+                foreach ($request->input('quantities') as $itemId => $qty) {
+                    $order->items()->where('id', $itemId)->update(['quantity' => $qty]);
+                }
+            }
+
+            // Atualizar status para "Ativo"
+            $order->status_id = 1;
+            $order->save();
+
+            // Nome da pasta: "julho_2025"
+            $folder = Str::slug(Carbon::now()->locale('pt_PT')->translatedFormat('F_Y'), '_');
+            $storagePath = "orders/{$folder}";
+
+            // Criar pasta se não existir
+            if (!Storage::disk('public')->exists($storagePath)) {
+                Storage::disk('public')->makeDirectory($storagePath);
+            }
+
+            // Carregar itens com relações
+            $order->load(['items.supplier', 'items.brand']);
+
+            $fornecedores = $order->items->groupBy(fn($item) => optional($item->supplier)->id ?? 'sem_fornecedor');
+
+            $downloadLinks = [];
+            $fileRecords = [];
+
+            foreach ($fornecedores as $items) {
+                $supplier = $items->first()->supplier;
+                $supplierName = Str::slug($supplier->name ?? 'fornecedor', '_');
+                $data = Carbon::now()->format('Y-m-d');
+                $filename = "{$supplierName}_{$data}.xlsx";
+                $filePath = "{$storagePath}/{$filename}";
+
+                // Gerar Excel apenas com os itens deste fornecedor
+                Excel::store(new OrderExport($items), $filePath, 'public');
+
+                $downloadLinks[] = $filename;
+
+                // Registo estruturado para JSON e envio
+                $fileRecords[] = [
+                    'path' => $filePath,
+                    'filename' => $filename,
+                    'supplier' => $supplier->name ?? 'Desconhecido',
+                    'created_at' => now()->toDateTimeString(),
+                ];
+            }
+
+            // Salvar o JSON na coluna 'files'
+            $order->files = $fileRecords;
+            $order->save();
+
+            // Enviar email com ficheiros anexos
+            Mail::to('desenvolvimento@peixeverde.pt')
+                ->cc('desenvolvimento.peixeverde@gmail.com')
+                ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
+
+            $msg = "Pedido enviado com sucesso!<br>Ficheiros gerados:<br>" . implode('<br>', $downloadLinks);
+
+            return redirect()->route('backoffice.dashboard')->with('success', $msg);
+
+        } catch (\Throwable $e) {
+            // Reverter estado para "pending" em caso de falha
+            $order->status_id = 3;
+            $order->save();
+
+            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.' . $e);
         }
     }
 

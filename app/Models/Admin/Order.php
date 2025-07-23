@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +9,10 @@ class Order extends Model
     use SoftDeletes;
 
     protected $fillable = ['status_id'];
+
+    protected $casts = [
+        'files' => 'array',
+    ];
 
     public function status()
     {
@@ -25,5 +28,4 @@ class Order extends Model
     {
         return $this->hasMany(OrderItem::class, 'order_id');
     }
-
 }

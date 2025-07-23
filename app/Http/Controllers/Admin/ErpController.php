@@ -37,6 +37,18 @@ class ErpController extends Controller
             $where[] = "i.FamilyID = {$brandErpId}";
         }
 
+        // 🔍 Adicionar pesquisa por nome, SKU ou código de barras
+        $search = $request->input('search');
+
+        if ($search) {
+            $search = trim($search);
+            $searchEscaped = str_replace("'", "''", $search);
+
+            $where[] = "(LOWER(n.ShortDescription) LIKE LOWER('%{$searchEscaped}%') 
+                    OR CAST(i.ItemID AS VARCHAR) LIKE '%{$searchEscaped}%' 
+                    OR i.BarCode LIKE '%{$searchEscaped}%')";
+        }
+
         $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $startDate = $request->start_date ?? now()->subDays(30)->toDateString();
@@ -102,8 +114,6 @@ class ErpController extends Controller
             $localSuppliers = Supplier::select('id', 'erp_id', 'name')->get()->keyBy('erp_id');
             $localBrands = Brand::select('id', 'erp_id', 'name')->get()->keyBy('erp_id');
 
-            
-
             return collect($response['data'])->map(function ($item) use ($daysInPeriod, $localSuppliers, $localBrands) {
                 
                 // Normalizar data do último movimento
@@ -122,8 +132,6 @@ class ErpController extends Controller
                 }
 
                 // Cálculo de sugestão
-                // Considera o stock atual e quanto é preciso comprar para durar
-                // os próximos 30 dias
                 $sales = $item['SalesLastPeriod'] ?? 0;
                 $stock = $item['StockQty'] ?? 0;
 
@@ -131,7 +139,6 @@ class ErpController extends Controller
                 $neededForNext30Days = ceil($averageDaily * 30);
 
                 $item['SuggestedQty'] = max($neededForNext30Days - $stock, 0);
-
 
                 // Mapear para os dados locais
                 $supplier = $localSuppliers[$item['SupplierID']] ?? null;
@@ -166,6 +173,7 @@ class ErpController extends Controller
             return collect();
         }
     }
+
 
     // não usados. metodos para ir buscar diretamente sempre as marcas e fornecedores
     // public function getErpSuppliers()

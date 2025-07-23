@@ -52,7 +52,7 @@
                             <div class="row align-items-end">
                                 <div class="col-12 col-md-4">
                                     <label for="search" class="form-label">Pesquisar</label>
-                                    <input type="text" name="search" id="search" class="form-control" value="{{ request('search') }}" placeholder="Nome ou SKU">
+                                    <input type="text" name="search" id="search" class="form-control" value="{{ request('search') }}" placeholder="Nome, SKU ou Código de Barras">
                                 </div>
                                 <div class="col-12 col-md-4">
                                     <label for="supplier_id" class="form-label">Fornecedor</label>
