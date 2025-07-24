@@ -75,7 +75,7 @@
                     <li class="sidebar-item">
                         <a class="sidebar-link" href="{{ route('orders.dashboard') }}">
                             <i class="align-middle menu-icons-color" data-feather="list"></i>
-                            <span class="align-middle">Pedidos a Fornecedor</span>
+                            <span class="align-middle">Pedidos a Fornecedores</span>
                         </a>
                     </li>
                     {{-- Recepção de encomenda --}}

@@ -174,6 +174,75 @@ class ErpController extends Controller
         }
     }
 
+    public function getProductBySkuOrBarcode(string $value)
+    {
+        $value = trim($value);
+        $escaped = str_replace("'", "''", $value);
+
+        $query = "
+            SELECT TOP 1
+                i.ItemID,
+                i.BarCode,
+                i.SupplierID,
+                i.FamilyID,
+                i.LastOutgoingDate,
+                i.SupplierOrderQty,
+                i.PhysicalQty,
+                n.ShortDescription AS ProductName,
+                (
+                    SELECT TOP 1 UnitPrice
+                    FROM dbo.ItemSellingPrices
+                    WHERE ItemID = i.ItemID AND PriceLineID = 0
+                ) AS CostPrice,
+                (
+                    SELECT TOP 1 AvailableQty
+                    FROM dbo.Stock
+                    WHERE ItemID = i.ItemID AND WarehouseID = 1
+                ) AS StockQty
+            FROM dbo.Item i
+            LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID
+            WHERE i.ItemID = '{$escaped}' OR i.BarCode = '{$escaped}'
+        ";
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type' => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($this->endpoint, ['query' => $query]);
+
+        if (!$response->successful() || !isset($response['data'][0])) {
+            return null;
+        }
+
+        $product = $response['data'][0];
+
+        $supplier = Supplier::where('erp_id', $product['SupplierID'])->first();
+        $brand = Brand::where('erp_id', $product['FamilyID'])->first();
+
+        $product['SupplierName'] = $supplier?->name;
+        $product['BrandName'] = $brand?->name;
+        $product['SupplierID_Local'] = $supplier?->id;
+        $product['BrandID_Local'] = $brand?->id;
+
+        //lógica de bonificações
+        $bonuses = Bonus::whereNull('deleted_at')->get();
+
+        $supplierId = $supplier?->id;
+        $brandId = $brand?->id;
+
+        $bonus = $bonuses->first(fn ($b) => $b->brand_id === $brandId);
+        if (!$bonus) {
+            $bonus = $bonuses->first(fn ($b) => $b->supplier_id === $supplierId);
+        }
+
+        $product['HasBonus'] = $bonus !== null;
+        $product['BonusName'] = $bonus?->name;
+        $product['BonusDescription'] = $bonus?->description;
+
+        return $product;
+    }
+
 
     // não usados. metodos para ir buscar diretamente sempre as marcas e fornecedores
     // public function getErpSuppliers()

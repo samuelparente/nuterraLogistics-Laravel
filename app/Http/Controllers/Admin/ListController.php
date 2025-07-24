@@ -64,4 +64,24 @@ class ListController extends Controller
         ));
     }
 
+    public function single(Request $request, ErpController $erpController)
+    {
+        $product = null;
+
+        if ($request->filled('search')) {
+            $product = $erpController->getProductBySkuOrBarcode($request->search);
+
+            if ($product) {
+                return view('layouts.admin.lists.single', compact('product'));
+            } else {
+                // ⚠️ Aqui usamos redirect para garantir que a session persiste
+                return redirect()->route('lists.single')
+                    ->with('error', 'Produto não encontrado.');
+            }
+        }
+
+        return view('layouts.admin.lists.single');
+    }
+
+
 }

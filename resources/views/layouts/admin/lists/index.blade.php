@@ -4,7 +4,7 @@
 <main class="content">
     <div class="container-fluid p-0">
 
-        <h1 class="h3 mb-3"><strong>PRODUTOS</strong> | Selecionar para Encomenda</h1>
+        <h1 class="h3 mb-3"><strong>PEDIDOS A FORNECEDORES</strong> | Listagens</h1>
 
         <!-- Botões de ação-->
         <div class="row mb-3">
@@ -23,6 +23,14 @@
                             <i class="bi bi-cart-plus"></i> Criar Pedido
                         </button>
                     </form>
+
+                    {{-- Adicionar individual (desativado se NÃO existir pedido em aberto) --}}
+                    <a 
+                        href="{{ route("lists.single")}}"
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $openOrder ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
+                        {{ $openOrder ? '' : 'disabled' }}>
+                        <i class="bi bi-cart-plus"></i> Adicionar Individual
+                    </a>
 
                     {{-- Adicionar Selecionados (desativado se NÃO existir pedido em aberto) --}}
                     <button 
@@ -164,7 +172,7 @@
                                     <th class="text-center" title="Bónus disponível"><i class="bi bi-gift table-icons"></i></th>
                                     <th title="Marca"><i class="bi bi-bookmark table-icons"></i></th>
                                     <th title="Fornecedor"><i class="bi bi-truck table-icons"></i></th>
-                                    <th title="Ações"></th>
+                                    <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
                                 </tr>
                             </thead>
                             <tbody>

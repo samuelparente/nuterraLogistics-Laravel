@@ -89,11 +89,18 @@ Route::middleware('auth')->group(function () {
             // Ver todos
             Route::get('index', [OrderController::class, 'index'])->name('index');
 
+            // Download de ficheiros de pedidos
+            Route::get('download-file', [OrderController::class, 'downloadFile'])->name('downloadFile');
+
             // Criar pedido vazio
             Route::post('create-empty', [OrderController::class, 'createEmpty'])->name('order.createEmpty');
 
             // Adicionar items ao pedido
             Route::post('add-items', [OrderController::class, 'addItems'])->name('order.addItems');
+
+            // Pedido de adiçao de item individual com scanner
+            Route::post('orders/add-single', [OrderController::class, 'addSingle'])->name('order.addSingle');
+
 
             // Retorna a quantidade de items
             Route::get('orders/cart-item-count', [OrderController::class, 'cartItemCount'])->name('orders.order.cartItemCount');
@@ -122,9 +129,13 @@ Route::middleware('auth')->group(function () {
         // Apenas super-admin e admin podem aceder
         Route::middleware(['role:super-admin|admin'])->group(function () {
             
-            // Ver
+            // Ver para pedir em massa
             Route::get('index', [ListController::class, 'index'])->name('index');
 
+            // View para Pedir individual com scanner
+            Route::get('single', [ListController::class, 'single'])->name('single');
+
+          
         });
 
     });

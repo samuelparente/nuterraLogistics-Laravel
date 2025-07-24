@@ -73,60 +73,63 @@
                 <div class="card flex-fill">
                     <div class="card-header"><h5 class="card-title mb-0">Lista de Bonificações</h5></div>
                     <div class="card-body table-responsive"> <!-- SCROLL MOBILE -->
-                        <table class="table table-sm table-hover">
+                        <table class="table table-condensed table-hover align-middle table-bordered">
                             <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th class="">Fornecedor</th>
-                                    <th class="">Marca</th>
-                                    <th class="">Descrição</th>
-                                    <th class="">Notas</th>
-                                    <th class=""></th>
+                                <tr class="align-middle">
+                                    <th><i class="bi bi-card-text table-icons" title="Nome"></i></th>
+                                    <th><i class="bi bi-truck table-icons" title="Fornecedor"></i></th>
+                                    <th><i class="bi bi-bookmark table-icons" title="Marca"></i></th>
+                                    <th><i class="bi bi-chat-left-text table-icons" title="Descrição"></i></th>
+                                    <th><i class="bi bi-journal-text table-icons" title="Notas"></i></th>
+                                    <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($bonuses as $bonus)
                                     <tr>
                                         <td>{{ $bonus->name }}</td>
-                                        <td class="">{{ $bonus->supplier?->name ?? '—' }}</td>
-                                        <td class="">{{ $bonus->brand?->name ?? '—' }}</td>
-                                        <td class="">{{ Str::limit($bonus->description, 50) ?? '—' }}</td>
-                                        <td class="">{{ Str::limit($bonus->notes, 50) ?? '—' }}</td>
-                                        <td class="text-end">
-                                            @php
-                                                $infoHtml = ($bonus->description ?? '—') . "<br><br>" . ($bonus->notes ?? '—');
-                                            @endphp
+                                        <td>{{ $bonus->supplier?->name ?? '—' }}</td>
+                                        <td>{{ $bonus->brand?->name ?? '—' }}</td>
+                                        <td>{{ Str::limit($bonus->description, 50) ?? '—' }}</td>
+                                        <td>{{ Str::limit($bonus->notes, 50) ?? '—' }}</td>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center gap-2">
 
-                                            <div class="d-inline-flex align-items-center">
                                                 <!-- Ver Detalhes -->
-                                                <a href="#" onclick="event.preventDefault();showInfoSwal('Detalhes da Bonificação', `{!! $infoHtml !!}`)" title="Ver Detalhes">
-                                                    <i class="bi bi-eye-fill text-info icon-view"></i>
+                                                <a href="#" class="btn btn-sm btn-outline-success btn-general"
+                                                onclick="event.preventDefault();showInfoSwal('Detalhes da Bonificação', `{!! nl2br(e($bonus->description ?? '—')) !!}<br><br>{!! nl2br(e($bonus->notes ?? '—')) !!}`)"
+                                                title="Ver Detalhes">
+                                                    <i class="bi bi-eye"></i>
                                                 </a>
 
                                                 <!-- Editar -->
-                                                <a href="{{ route('bonuses.bonus.edit', $bonus->id) }}" title="Editar">
-                                                    <i class="bi bi-pencil-fill icon-edit"></i>
+                                                <a class="btn btn-sm btn-outline-warning btn-general" href="{{ route('bonuses.bonus.edit', $bonus->id) }}" title="Editar">
+                                                    <i class="bi bi-pencil"></i>
                                                 </a>
 
                                                 <!-- Eliminar -->
-                                                <a href="#" onclick="confirmDelete({{ $bonus->id }})" title="Eliminar">
-                                                    <i class="bi bi-trash-fill icon-delete text-danger"></i>
+                                                <a class="btn btn-sm btn-outline-danger btn-general" href="#" onclick="confirmDelete({{ $bonus->id }})" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
                                                 </a>
 
-                                                <!-- Formulário de Eliminação (oculto) -->
-                                                <form id="delete-form-{{ $bonus->id }}" action="{{ route('bonuses.bonus.destroy', $bonus->id) }}" method="POST" style="display:none;">
+                                                <!-- Formulário oculto -->
+                                                <form id="delete-form-{{ $bonus->id }}" 
+                                                    action="{{ route('bonuses.bonus.destroy', $bonus->id) }}" 
+                                                    method="POST" style="display:none;">
                                                     @csrf
                                                     @method('DELETE')
                                                 </form>
                                             </div>
                                         </td>
-
                                     </tr>
                                 @empty
-                                    <tr><td colspan="5" class="text-center">Nenhuma registo encontrado.</td></tr>
+                                    <tr>
+                                        <td colspan="6" class="text-center">Nenhum registo encontrado.</td>
+                                    </tr>
                                 @endforelse
                             </tbody>
                         </table>
+
                     </div>
                 </div>
             </div>

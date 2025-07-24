@@ -3,7 +3,7 @@
 @section('content_admin')
 <main class="content">
     <div class="container-fluid p-0">
-        <h1 class="h3 mb-3"><strong>Pedido #{{ $order->id }}</strong> | Carrinho</h1>
+        <h1 class="h3 mb-3"><strong>PEDIDOS A FORNECEDORES</strong> | Em Aberto</h1>
 
         <!-- Ações -->
         <div class="row mb-3">
@@ -21,6 +21,11 @@
             </div>
         </div>
 
+         <!-- Breadcrumbs -->
+        @include('layouts.admin.partials.breadcrumbs', [
+            'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
+        ])
+
         <!-- Tabela de Itens do Pedido -->
         
             <div class="card">
@@ -36,7 +41,7 @@
                                 <th title="Fornecedor"><i class="bi bi-truck table-icons"></i></th>
                                 <th class="text-center" title="Bonificações"><i class="bi bi-gift table-icons"></i></th>
                                 <th title="Quantidade"><i class="bi bi-box-seam table-icons"></i></th>
-                                <th title="Ações"></th>
+                                <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -77,7 +82,7 @@
                                     </td>
 
                                     <td class="text-center">
-                                        <a class="btn btn-sm btn-outline-danger" 
+                                        <a class="btn btn-sm btn-general btn-outline-danger" 
                                             href="#" 
                                             onclick="confirmDelete({{ $item->id }})" 
                                             title="Eliminar Item">

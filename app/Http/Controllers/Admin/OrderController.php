@@ -31,6 +31,45 @@ class OrderController extends Controller
         return view('layouts.admin.orders.dashboard', compact('openOrder'));
     }
 
+    public function index(Request $request)
+    {
+        try {
+            $statuses = Status::all(); // Estados disponíveis para filtro
+
+            $orders = Order::with(['items.supplier', 'status']) // Carrega também os fornecedores
+                ->when($request->status, fn($q) => $q->where('status_id', $request->status))
+                ->when($request->date, fn($q) => $q->whereDate('created_at', $request->date))
+                ->orderByDesc('created_at')
+                ->paginate(paginationPerPage())
+                ->appends($request->only(['status', 'date'])); // Mantém os filtros ao navegar
+
+            return view('layouts.admin.orders.index', compact('orders', 'statuses'));
+        } catch (\Exception $e) {
+            return back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+        }
+    }
+
+
+    public function downloadFile(Request $request)
+    {
+        $relativePath = $request->query('path');
+
+        // Segurança contra caminhos maliciosos
+        if (!$relativePath || Str::contains($relativePath, ['..', './', '//'])) {
+            abort(400, 'Caminho inválido');
+        }
+
+        $disk = Storage::disk('public');
+
+        if (!$disk->exists($relativePath)) {
+            abort(404, 'Ficheiro não encontrado');
+        }
+
+        $absolutePath = $disk->path($relativePath);
+        $filename = basename($relativePath);
+
+        return response()->download($absolutePath, $filename);
+    }
 
     public function edit(Request $request)
     {
@@ -150,6 +189,43 @@ class OrderController extends Controller
         }
     }
 
+    public function addSingle(Request $request)
+    {
+        try {
+            $request->validate([
+                'item_sku' => 'required|string',
+                'quantity' => 'required|integer|min:1',
+            ]);
+
+            $openOrder = Order::whereHas('status', fn($q) => $q->where('code', 'pending'))->first();
+
+            if (!$openOrder) {
+                return redirect()->back()->with('error', 'Não existe pedido em aberto para adicionar produtos.');
+            }
+
+            $existingItem = OrderItem::where('order_id', $openOrder->id)
+                ->where('product_sku', $request->item_sku)
+                ->first();
+
+            if ($existingItem) {
+                return redirect()->back()->with('error', 'Este produto já foi adicionado ao pedido.');
+            }
+
+            OrderItem::create([
+                'order_id' => $openOrder->id,
+                'product_sku' => $request->item_sku,
+                'quantity' => (int) $request->quantity,
+                'product_barcode' => $request->barcode ?? null,
+                'product_name' => $request->product_name ?? null,
+                'supplier_id' => $request->supplier_id ?? null,
+                'brand_id' => $request->brand_id ?? null,
+            ]);
+
+            return redirect()->route('lists.single')->with('success', 'Produto adicionado ao pedido com sucesso.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Erro ao adicionar produto: ' . $e->getMessage());
+        }
+    }
 
     public function cartItemCount()
     {
@@ -190,6 +266,11 @@ class OrderController extends Controller
     public function update(Request $request, Order $order)
     {
         try {
+
+            if ($order->items()->count() === 0) {
+                return redirect()->back()->with('error', 'O pedido está vazio. Adicione itens antes de enviar.');
+            }
+
             // Atualizar quantidades
             if ($request->has('quantities')) {
                 foreach ($request->input('quantities') as $itemId => $qty) {
