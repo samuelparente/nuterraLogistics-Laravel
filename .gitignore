@@ -1,1 +1,35 @@
-node_modules
+# Diretórios a ignorar
+/vendor
+/node_modules
+/storage/*.key
+/storage/pail
+/storage/*.log
+/db_backup
+
+# Ignorar arquivos do ambiente
+.env
+.env.*
+.phpunit.result.cache
+.phpunit.cache
+.phpactor.json
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+auth.json
+
+# Ignorar arquivos de IDEs e ferramentas
+/.idea
+/.vscode
+/.nova
+/.fleet
+/.zed
+
+# Ignorar arquivos de build público
+/public/storage
+/public/hot
+/public/build
+/public/.htaccess
+
+# Outros
+*.bat

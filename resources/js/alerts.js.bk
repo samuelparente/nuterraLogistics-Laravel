@@ -1,0 +1,54 @@
+import Swal from 'sweetalert2';
+
+// Flash messages (Laravel sessions via Blade)
+window.addEventListener('DOMContentLoaded', () => {
+    const corPrincipal = getComputedStyle(document.documentElement).getPropertyValue('--cor-principal').trim();
+
+    // Flash success
+    if (window.flashSuccess) {
+        Swal.fire({
+            icon: 'success',
+            title: 'Sucesso',
+            text: window.flashSuccess,
+            confirmButtonColor: corPrincipal,
+        });
+    }
+
+    // Flash error
+    if (window.flashError) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: window.flashError,
+            confirmButtonColor: corPrincipal,
+        });
+    }
+
+    // Confirm delete
+    window.confirmDelete = function (id) {
+        Swal.fire({
+            title: 'Eliminar Registo?',
+            text: 'Esta ação não pode ser anulada!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: corPrincipal,
+            confirmButtonText: 'Eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'A eliminar...',
+                    text: 'Por favor aguarda',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                document.getElementById('delete-form-' + id).submit();
+            }
+        });
+    };
+});
