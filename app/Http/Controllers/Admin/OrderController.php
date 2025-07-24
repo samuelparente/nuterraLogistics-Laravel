@@ -325,8 +325,8 @@ class OrderController extends Controller
             $order->save();
 
             // Enviar email com ficheiros anexos
-            Mail::to('desenvolvimento@peixeverde.pt')
-                ->cc('desenvolvimento.peixeverde@gmail.com')
+            Mail::to('sofia@peixeverde.pt')
+                ->cc('desenvolvimento@peixeverde.pt','fernanda@peixeverde.pt')
                 ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
 
             $msg = "Pedido enviado com sucesso!<br>Ficheiros gerados:<br>" . implode('<br>', $downloadLinks);

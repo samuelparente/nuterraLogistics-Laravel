@@ -54,8 +54,8 @@ Route::middleware('auth')->group(function () {
     // Bonificacoes
     Route::prefix('/backoffice/bonuses')->name('bonuses.')->group(function () {
 
-        // Apenas super-admin e admin podem aceder
-        Route::middleware(['role:super-admin|admin'])->group(function () {
+        // Apenas super-admin, admin e gestor podem aceder
+        Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
             
             // Ver todos
             Route::get('index', [BonusController::class, 'index'])->name('index');
@@ -81,8 +81,8 @@ Route::middleware('auth')->group(function () {
     // Pedidos a fornecedor
     Route::prefix('/backoffice/orders')->name('orders.')->group(function () {
 
-        // Apenas super-admin e admin podem aceder
-        Route::middleware(['role:super-admin|admin'])->group(function () {
+        // Apenas super-admin, admin e gestor podem aceder
+        Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
             
             // Ver dashboard dos pedidos
             Route::get('dashboard', [OrderController::class, 'dashboard'])->name('dashboard');
@@ -126,8 +126,8 @@ Route::middleware('auth')->group(function () {
     // Listagens
     Route::prefix('/backoffice/lists')->name('lists.')->group(function () {
 
-        // Apenas super-admin e admin podem aceder
-        Route::middleware(['role:super-admin|admin'])->group(function () {
+        // Apenas super-admin, admin e gestor podem aceder
+        Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
             
             // Ver para pedir em massa
             Route::get('index', [ListController::class, 'index'])->name('index');
