@@ -6,6 +6,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<meta name="description" content="Painel de administração da Nuterra">
 	<meta name="author" content="Samuel Parente">
+    <meta name="robots" content="noindex, nofollow">
 	<meta name="keywords" content="">
 	<link rel="preconnect" href="https://fonts.gstatic.com">
     <link rel="shortcut icon" href="{{ asset('images/general/logo_pv.ico') }}"/>

@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Auth;
 
 
 // Rotas login
-Route::get('/login', [AuthenticatedSessionController::class, 'create'])->name('login');
-Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+Route::get('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+Route::post('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/login', [AuthenticatedSessionController::class, 'store']);
 
 // Backoffice 
 Route::middleware('auth')->group(function () {
