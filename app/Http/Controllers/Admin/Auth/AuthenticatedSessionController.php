@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\ErpController;
+
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,6 +31,10 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::user(); // ou $request->user();
+
+        // Chamar método do ErpController
+        $erp = new ErpController();
+        $erp->syncErpData();
 
         return redirect()->intended(route('backoffice.dashboard'))
              ->with('success', 'Bem-vindo(a), ' . $user->name);     

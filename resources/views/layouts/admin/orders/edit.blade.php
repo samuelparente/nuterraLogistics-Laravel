@@ -1,0 +1,126 @@
+@extends('layouts.admin.partials.master_admin')
+
+@section('content_admin')
+<main class="content">
+    <div class="container-fluid p-0">
+        <h1 class="h3 mb-3"><strong>PEDIDOS A FORNECEDORES</strong> | Em Aberto</h1>
+
+        <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <a href="{{ route('lists.index') }}" class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
+                    <i class="bi bi-cart-plus"></i> Listagens
+                </a>
+                <a class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-danger" href="#" onclick="confirmDelete({{ $order->id }})" title="Eliminar Pedido">
+                    <i class="bi bi-trash"></i> Eliminar Pedido
+                </a>
+                <form id="delete-form-{{ $order->id }}" action="{{ route('orders.order.destroy', $order->id) }}" method="POST" style="display: none;">
+                    @csrf
+                    @method('DELETE')
+                </form>
+            </div>
+        </div>
+
+         <!-- Breadcrumbs -->
+        @include('layouts.admin.partials.breadcrumbs', [
+            'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
+        ])
+
+        <!-- Tabela de Itens do Pedido -->
+        
+            <div class="card">
+                <div class="card-header"><h5 class="card-title mb-0">Itens no Pedido</h5></div>
+                <div class="card-body table-responsive">
+                    <table class="table table-condensed table-hover align-middle table-bordered">
+                        <thead>
+                            <tr>
+                                <th title="SKU"><i class="bi bi-hash table-icons"></i></th>
+                                <th title="Código Barras"><i class="bi bi-upc-scan table-icons"></i></th>
+                                <th title="Nome"><i class="bi bi-card-text table-icons"></i></th>
+                                <th title="Marca"><i class="bi bi-bookmark table-icons"></i></th>
+                                <th title="Fornecedor"><i class="bi bi-truck table-icons"></i></th>
+                                <th class="text-center" title="Bonificações"><i class="bi bi-gift table-icons"></i></th>
+                                <th title="Quantidade"><i class="bi bi-box-seam table-icons"></i></th>
+                                <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($order->items as $item)
+                                <tr>
+                                    <td><span class="badge bg-dark">{{ $item->product_sku }}</span></td>
+                                    <td><span class="badge bg-dark">{{ $item->product_barcode }}</span></td>
+                                    <td>{{ $item->product_name }}</td>
+                                    <td>{{ $item->brand->name ?? '' }}</td>
+                                    <td>{{ $item->supplier->name ?? '' }}</td>
+
+                                    <td class="text-center">
+                                        @if ($item->bonusLabel)
+                                            <span 
+                                                class="badge bg-success"
+                                                data-bs-toggle="tooltip"
+                                                title="{{ $item->bonusTooltip }}">
+                                                <i class="bi bi-gift-fill"></i>
+                                            </span>
+                                        @else
+                                        <span 
+                                                class="badge bg-danger"
+                                                data-bs-toggle="tooltip"
+                                                title="Sem Bonificações">
+                                                <i class="bi bi-gift-fill"></i>
+                                            </span>
+                                        @endif
+                                    </td>
+
+
+                                    <td>
+                                        <input type="number" 
+                                            name="quantities[{{ $item->id }}]" 
+                                            value="{{ $item->quantity }}" 
+                                            class="form-control form-control-sm text-end d-block ms-auto" 
+                                            style="width: 80px;" 
+                                            min="1">
+                                    </td>
+
+                                    <td class="text-center">
+                                        <a class="btn btn-sm btn-general btn-outline-danger" 
+                                            href="#" 
+                                            onclick="confirmDelete({{ $item->id }})" 
+                                            title="Eliminar Item">
+                                            <i class="bi bi-trash table-icon-remove"></i>
+                                        </a>
+                                        <form id="delete-form-{{ $item->id }}" 
+                                              action="{{ route('orders.order.order_item.destroy', $item->id) }}" 
+                                              method="POST" 
+                                              style="display: none;">
+                                            @csrf
+                                            @method('DELETE')
+                                        </form>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="8" class="text-center">Nenhum produto no pedido.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <form method="POST" action="{{ route('orders.order.update', $order->id) }}">
+                @csrf
+                @method('PATCH')
+
+                <div class="text-start mt-3">
+                    <button type="submit" class="btn btn-primary">Enviar Pedido</button>
+                </div>
+            </form>
+    </div>
+</main>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+        tooltips.forEach(t => new bootstrap.Tooltip(t));
+    });
+</script>
+
+@endsection

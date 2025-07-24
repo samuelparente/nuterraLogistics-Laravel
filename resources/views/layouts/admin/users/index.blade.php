@@ -78,39 +78,41 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">Utilizadores</h5>
                     </div>
-                    <table class="table table-hover my-0">
+                    <table class="table table-condensed table-hover align-middle table-bordered">
                         <thead>
-                            <tr>
-                                <th></th>
-                                <th>Nome</th>
-                                <th class="d-none d-xl-table-cell">Email</th>
-                                <th class="d-none d-xl-table-cell">Papel</th>
-                                <th class="d-none d-xl-table-cell">Estado</th>
-                                <th>Ações</th>
+                            <tr class="align-middle">
+                                <th class="text-center"><i class="bi bi-person-circle table-icons" title="Avatar"></i></th>
+                                <th class="d-none d-xl-table-cell"><i class="bi bi-person-fill table-icons" title="Nome"></i></th>
+                                <th><i class="bi bi-envelope-fill table-icons" title="Email"></i></th>
+                                <th class="d-none d-xl-table-cell"><i class="bi bi-shield-lock-fill table-icons" title="Papel"></i></th>
+                                <th class="d-none d-xl-table-cell" title="Estado"><i class="bi bi-activity table-icons"></i></th>
+                                <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
                             </tr>
                         </thead>
 
                         <tbody>
                             @forelse($users as $user)
                                 <tr>
-                                    <td>
-                                        <div class="avatar-container">
+                                    <td class="text-center">
+                                        <div class="d-flex justify-content-center">
                                             <img
                                                 src="{{ $user->avatar
                                                     ? asset('storage/images/general/avatars/' . $user->avatar)
                                                     : asset('images/general/avatars/avatar_default.png') }}"
                                                 alt="Avatar"
-                                                class="avatar_profile">
-                                        </div>  
+                                                class="avatar_profile rounded-circle"
+                                                style="width: 40px; height: 40px; object-fit: cover;">
+                                        </div>
                                     </td>
-                                    <td>{{ $user->name }}</td>
-                                    <td class="d-none d-xl-table-cell">{{ $user->email }}</td>
+
+                                    <td class="d-none d-xl-table-cell">{{ $user->name }}</td>
+                                    <td>{{ $user->email }}</td>
                                     <td class="d-none d-xl-table-cell">
                                         @foreach ($user->roleLabels() as $roleLabel)
                                             <span class="badge bg-info">{{ $roleLabel }}</span>
                                         @endforeach
                                     </td>
-                                    <td>
+                                    <td class="d-none d-xl-table-cell">
                                         @if($user->status)
                                             <span class="badge bg-{{ $user->status->color ?? 'secondary' }}">
                                                 {{ $user->status->label_pt }}
@@ -119,17 +121,26 @@
                                             <span class="badge bg-light text-muted">Sem estado</span>
                                         @endif
                                     </td>
-                                    <td> 
-                                        <a href="{{ route('users.user.edit', $user->id) }}" title="Editar">
-                                            <i class="bi bi-pencil-fill icon-edit"></i>
-                                        </a>
-                                        <a href="#" onclick="confirmDelete({{ $user->id }})" title="Eliminar">
-                                            <i class="bi bi-trash-fill icon-delete text-danger"></i>
-                                        </a>
-                                        <form id="delete-form-{{ $user->id }}" action="{{ route('users.user.destroy', $user->id) }}" method="POST" style="display: none;">
-                                            @csrf
-                                            @method('DELETE')
-                                        </form>
+                                    <td class="text-center">
+                                        <div class="d-inline-flex align-items-center gap-2">
+                                            <!-- Editar -->
+                                            <a href="{{ route('users.user.edit', $user->id) }}" class="btn btn-sm btn-outline-warning btn-general" title="Editar">
+                                                <i class="bi bi-pencil"></i>
+                                            </a>
+
+                                            <!-- Eliminar -->
+                                            <a href="#" onclick="confirmDelete({{ $user->id }})" class="btn btn-sm btn-outline-danger btn-general" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+
+                                            <!-- Formulário de Eliminação -->
+                                            <form id="delete-form-{{ $user->id }}" 
+                                                action="{{ route('users.user.destroy', $user->id) }}" 
+                                                method="POST" style="display: none;">
+                                                @csrf
+                                                @method('DELETE')
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty

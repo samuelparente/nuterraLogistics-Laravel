@@ -9,11 +9,11 @@
             <div class="col-6 text-end">
                 <ul class="list-inline">
                     <li class="list-inline-item">
-                        <a class="text-muted" href="" target="_blank">Suporte</a>
+                        <a class="text-muted" href="mailto:desenvolvimento@peixeverde.pt" target="_blank">Suporte</a>
                     </li>
-                    <li class="list-inline-item">
+                    {{-- <li class="list-inline-item">
                         <a class="text-muted" href="" target="_blank">Centro de Ajuda</a>
-                    </li>
+                    </li> --}}
                 </ul>
             </div>
         </div>
