@@ -13,19 +13,21 @@
 
         <div class="row">
 
-            <!-- Utilizadores -->
-            <div class="col-12 col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body d-flex flex-column justify-content-center text-center">
-                        <div class="mb-3 text-primary">
-                            <i data-feather="users" class="taxonomy-icons" style="width:48px; height:48px;"></i>
-                            <h5 class="card-title mt-2 mb-1">Utilizadores</h5>
+
+            <!-- Utilizadores - admin e super admin -->
+            @hasanyrole('admin|super-admin')
+                <div class="col-12 col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="mb-3 text-primary">
+                                <i data-feather="users" class="taxonomy-icons" style="width:48px; height:48px;"></i>
+                                <h5 class="card-title mt-2 mb-1">Utilizadores</h5>
+                            </div>
+                            <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-primary col-6 mx-auto">Aceder</a>
                         </div>
-                        <a href="{{ route('users.index') }}" class="btn btn-sm btn-outline-primary col-6 mx-auto">Aceder</a>
                     </div>
                 </div>
-            </div>
-
+            @endhasanyrole
             <!-- Pedido a Fornecedor -->
             <div class="col-12 col-md-4 mb-4">
                 <div class="card h-100">
