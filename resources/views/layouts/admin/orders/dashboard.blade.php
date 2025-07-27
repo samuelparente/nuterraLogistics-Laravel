@@ -73,7 +73,7 @@
                     <div class="card-body d-flex flex-column justify-content-center text-center">
                         <div class="mb-3 text-warning">
                             <i data-feather="list" class="taxonomy-icons" style="width:48px; height:48px;"></i>
-                            <h5 class="card-title mt-2 mb-1">Histórico de Pedidos</h5>
+                            <h5 class="card-title mt-2 mb-1">Histórico</h5>
                         </div>
                         <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-warning col-6 mx-auto">Aceder</a>
                     </div>

@@ -240,6 +240,21 @@ class ErpController extends Controller
         $product['BonusName'] = $bonus?->name;
         $product['BonusDescription'] = $bonus?->description;
 
+        // Formatar a data LastOutgoingDate como string legível
+        $rawDate = $product['LastOutgoingDate'] ?? null;
+
+        try {
+            if (is_array($rawDate) && isset($rawDate['date'])) {
+                $product['LastOutgoingDate'] = \Carbon\Carbon::parse($rawDate['date'])->format('Y-m-d');
+            } elseif (is_string($rawDate)) {
+                $product['LastOutgoingDate'] = \Carbon\Carbon::parse($rawDate)->format('Y-m-d');
+            } else {
+                $product['LastOutgoingDate'] = null;
+            }
+        } catch (\Exception $e) {
+            $product['LastOutgoingDate'] = null;
+        }
+
         return $product;
     }
 

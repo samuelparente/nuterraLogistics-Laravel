@@ -3,6 +3,7 @@ use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\BonusController;
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\ReceivingController;
 use App\Http\Controllers\Admin\ListController;
 use App\Http\Controllers\Admin\ErpController;
 use Illuminate\Support\Facades\Route;
@@ -119,6 +120,22 @@ Route::middleware('auth')->group(function () {
     
             // Eliminar 
             Route::delete('{order}', [OrderController::class, 'destroy'])->name('order.destroy');
+        });
+
+    });
+
+    // Receção de marcadorias
+    Route::prefix('/backoffice/receivings')->name('receivings.')->group(function () {
+
+        // Apenas super-admin, admin e gestor podem aceder
+        Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
+            
+            // Ver dashboard dos pedidos
+            Route::get('dashboard', [ReceivingController::class, 'dashboard'])->name('dashboard');
+
+             // Ver para receber
+            Route::get('index', [ReceivingController::class, 'index'])->name('index');
+            
         });
 
     });
