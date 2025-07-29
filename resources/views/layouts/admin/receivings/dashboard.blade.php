@@ -13,37 +13,36 @@
 
         <div class="row">
 
-            <!-- pedidos pendentes de receber -->
             <div class="col-12 col-md-4 mb-4">
-                <div class="card h-100">
+                <div class="card h-100 {{ !$hasActiveOrders ? 'bg-light text-muted' : '' }}">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
-                        <div class="mb-3 text-danger">
+                        <div class="mb-3 {{ !$hasActiveOrders ? 'text-muted' : 'text-danger' }}">
                             <i data-feather="clock" class="taxonomy-icons" style="width:48px; height:48px;"></i>
                             <h5 class="card-title mt-2 mb-1">Entradas Pendentes</h5>
                         </div>
-                        <a href="{{ route('receivings.index') }}" class="btn btn-sm btn-outline-danger col-6 mx-auto">Aceder</a>
+
+                        @if ($hasActiveOrders)
+                            <a href="{{ route('receivings.index') }}" class="btn btn-sm btn-outline-danger col-6 mx-auto">Aceder</a>
+                        @else
+                            <button class="btn btn-sm btn-outline-secondary col-6 mx-auto" disabled>Sem pedidos pendentes de abertura</button>
+                        @endif
                     </div>
                 </div>
             </div>
 
-           @php
-                $hasOpenOrder = isset($openOrder) && $openOrder !== null;
-            @endphp
-
-          
-
-            <!-- pedido atual -->
-            <div class="col-12 col-md-4 mb-4">
-                <div class="card h-100 {{ !$hasOpenOrder ? 'bg-light text-muted' : '' }}">
+           <!-- entradas em aberto -->
+           <div class="col-12 col-md-4 mb-4">
+                <div class="card h-100 {{ !$hasPendingReceivings ? 'bg-light text-muted' : '' }}">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
-                        <div class="mb-3 {{ !$hasOpenOrder ? 'text-muted' : 'text-primary' }}">
+                        <div class="mb-3 {{ !$hasPendingReceivings ? 'text-muted' : 'text-primary' }}">
                             <i data-feather="package" class="taxonomy-icons" style="width:48px; height:48px;"></i>
-                            <h5 class="card-title mt-2 mb-1">Entrada em Aberto</h5>
+                            <h5 class="card-title mt-2 mb-1">Entradas em Curso</h5>
                         </div>
-                        @if ($hasOpenOrder)
-                            <a href="{{ route('orders.order.edit') }}" class="btn btn-sm btn-outline-primary col-6 mx-auto">Aceder</a>
+
+                        @if ($hasPendingReceivings)
+                            <a href="{{ route('receivings.pending') }}" class="btn btn-sm btn-outline-primary col-6 mx-auto">Aceder</a>
                         @else
-                            <button class="btn btn-sm btn-outline-secondary col-6 mx-auto" disabled>Não existe uma entrada de mercadorias em aberto</button>
+                            <button class="btn btn-sm btn-outline-secondary col-6 mx-auto" disabled>Não existem entradas em curso</button>
                         @endif
                     </div>
                 </div>

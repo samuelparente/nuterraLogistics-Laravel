@@ -129,6 +129,42 @@ return [
         ['label' => 'Pedidos a Fornecedor', 'route' => 'orders.dashboard', 'icon' => 'bi-truck'],
         ['label' => 'Eliminar Pedido', 'route' => null, 'icon' => 'bi-trash'],
     ],
+    // Entrada de Mercadorias
+    'receivings.dashboard' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Visão Geral', 'route' => null, 'icon' => 'bi-speedometer2'],
+    ],
+
+    'receivings.index' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Pendentes', 'route' => null, 'icon' => 'bi-list'],
+    ],
+
+    'receivings.pending' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Em Curso', 'route' => null, 'icon' => 'bi-hourglass-split'],
+    ],
+
+    'receivings.suppliers' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Fornecedores', 'route' => null, 'icon' => 'bi-people'],
+    ],
+
+    'receivings.form' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Listagem de Produtos', 'route' => null, 'icon' => 'bi-ui-checks'],
+    ],
+
+    'receivings.items.single' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Produto Extra', 'route' => null, 'icon' => 'bi-plus-circle'],
+    ],
 
 
 ];

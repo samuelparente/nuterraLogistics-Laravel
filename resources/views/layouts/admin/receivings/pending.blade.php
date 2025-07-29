@@ -1,0 +1,57 @@
+@extends('layouts.admin.partials.master_admin')
+
+@section('content_admin')
+<main class="content">
+  <div class="container-fluid p-0">
+    <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Em Curso</h1>
+
+    @include('layouts.admin.partials.breadcrumbs', [
+      'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
+    ])
+
+    <div class="card">
+      <div class="card-header"><h5 class="card-title mb-0">Entradas em Curso</h5></div>
+      <div class="card-body">
+        <table class="table table-condensed table-hover table-bordered table-responsive">
+          <thead>
+            <tr>
+               <th><i class="bi bi-hash table-icons" title="ID"></i></th>
+               <th><i class="bi bi-calendar-event table-icons" title="Data do pedido"></i></th>
+               <th><i class="bi bi-truck table-icons" title="Fornecedor(es)"></i></th>
+               <th class="d-none d-xl-table-cell" title="Estado"><i class="bi bi-activity table-icons"></i></th>
+               <th class="text-center" style="width:1.5rem;"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse ($receivings as $receiving)
+              <tr>
+                <td>#{{ $receiving->order->id }}</td>
+                <td>{{ $receiving->order->created_at->format('d/m/Y H:i') }}</td>
+                <td>{{ $receiving->supplier->name }}</td>
+                <!-- <td>{{ $receiving->items->count() }}</td> -->
+                <td>
+                    @if($receiving->status)
+                        <span class="badge bg-{{ $receiving->status->color ?? 'secondary' }}">
+                            {{ $receiving->status->label_pt }}
+                        </span>
+                    @else
+                        <span class="badge bg-light text-muted">Desconhecido</span>
+                    @endif
+                </td>
+                <td>
+                  <a href="{{ route('receivings.form', ['order' => $receiving->order_id, 'supplier' => $receiving->supplier_id]) }}"
+                    class="btn btn-sm btn-outline-secondary btn-general" title="Receber os Produtos do Fornecedor">
+                    <i class="bi bi-dropbox"></i>
+                  </a>
+                </td>
+              </tr>
+            @empty
+              <tr><td colspan="6" class="text-center">Nenhum pedido pendente.</td></tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+@endsection

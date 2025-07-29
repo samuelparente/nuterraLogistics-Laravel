@@ -44,7 +44,7 @@ class ErpController extends Controller
             $search = trim($search);
             $searchEscaped = str_replace("'", "''", $search);
 
-            $where[] = "(LOWER(n.ShortDescription) LIKE LOWER('%{$searchEscaped}%') 
+            $where[] = "(LOWER(n.Description) LIKE LOWER('%{$searchEscaped}%') 
                     OR CAST(i.ItemID AS VARCHAR) LIKE '%{$searchEscaped}%' 
                     OR i.BarCode LIKE '%{$searchEscaped}%')";
         }
@@ -63,7 +63,7 @@ class ErpController extends Controller
                 i.LastOutgoingDate,
                 i.SupplierOrderQty,
                 i.PhysicalQty,
-                n.ShortDescription AS ProductName,
+                n.Description AS ProductName,
                 (
                     SELECT TOP 1 UnitPrice
                     FROM dbo.ItemSellingPrices
@@ -174,10 +174,13 @@ class ErpController extends Controller
         }
     }
 
-    public function getProductBySkuOrBarcode(string $value)
+    public function getProductBySkuOrBarcode(string $value, array $filters = [])
     {
         $value = trim($value);
         $escaped = str_replace("'", "''", $value);
+
+        $startDate = $filters['start_date'] ?? now()->subDays(30)->toDateString();
+        $endDate = $filters['end_date'] ?? now()->toDateString();
 
         $query = "
             SELECT TOP 1
@@ -188,7 +191,7 @@ class ErpController extends Controller
                 i.LastOutgoingDate,
                 i.SupplierOrderQty,
                 i.PhysicalQty,
-                n.ShortDescription AS ProductName,
+                n.Description AS ProductName,
                 (
                     SELECT TOP 1 UnitPrice
                     FROM dbo.ItemSellingPrices
@@ -198,7 +201,23 @@ class ErpController extends Controller
                     SELECT TOP 1 AvailableQty
                     FROM dbo.Stock
                     WHERE ItemID = i.ItemID AND WarehouseID = 1
-                ) AS StockQty
+                ) AS StockQty,
+                (
+                    SELECT SUM(z.Quantity)
+                    FROM dbo.SaleTransactionDetails z
+                    WHERE z.ItemID = i.ItemID
+                    AND z.TransDocument = 'FR'
+                    AND z.CreateDate BETWEEN '{$startDate}' AND '{$endDate}'
+                ) AS SalesLastPeriod,
+                (
+                    SELECT SUM(z.Quantity)
+                    FROM dbo.SaleTransactionDetails z
+                    WHERE z.ItemID = i.ItemID
+                    AND z.TransDocument = 'FR'
+                    AND z.CreateDate BETWEEN 
+                        DATEADD(YEAR, -1, '{$startDate}') AND 
+                        DATEADD(YEAR, -1, '{$endDate}')
+                ) AS SalesPreviousYearPeriod
             FROM dbo.Item i
             LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID
             WHERE i.ItemID = '{$escaped}' OR i.BarCode = '{$escaped}'
@@ -225,25 +244,21 @@ class ErpController extends Controller
         $product['SupplierID_Local'] = $supplier?->id;
         $product['BrandID_Local'] = $brand?->id;
 
-        //lógica de bonificações
+        // Bonificações
         $bonuses = Bonus::whereNull('deleted_at')->get();
-
         $supplierId = $supplier?->id;
         $brandId = $brand?->id;
 
-        $bonus = $bonuses->first(fn ($b) => $b->brand_id === $brandId);
-        if (!$bonus) {
-            $bonus = $bonuses->first(fn ($b) => $b->supplier_id === $supplierId);
-        }
+        $bonus = $bonuses->first(fn ($b) => $b->brand_id === $brandId)
+            ?? $bonuses->first(fn ($b) => $b->supplier_id === $supplierId);
 
         $product['HasBonus'] = $bonus !== null;
         $product['BonusName'] = $bonus?->name;
         $product['BonusDescription'] = $bonus?->description;
 
-        // Formatar a data LastOutgoingDate como string legível
-        $rawDate = $product['LastOutgoingDate'] ?? null;
-
+        // Format data
         try {
+            $rawDate = $product['LastOutgoingDate'] ?? null;
             if (is_array($rawDate) && isset($rawDate['date'])) {
                 $product['LastOutgoingDate'] = \Carbon\Carbon::parse($rawDate['date'])->format('Y-m-d');
             } elseif (is_string($rawDate)) {
@@ -255,8 +270,18 @@ class ErpController extends Controller
             $product['LastOutgoingDate'] = null;
         }
 
+        // Cálculo de sugestão
+        $daysInPeriod = \Carbon\Carbon::parse($startDate)->diffInDays(\Carbon\Carbon::parse($endDate)) + 1;
+        $sales = $product['SalesLastPeriod'] ?? 0;
+        $stock = $product['StockQty'] ?? 0;
+
+        $averageDaily = $daysInPeriod > 0 ? $sales / $daysInPeriod : 0;
+        $neededForNext30Days = ceil($averageDaily * 30);
+        $product['SuggestedQty'] = max($neededForNext30Days - $stock, 0);
+
         return $product;
     }
+
 
 
     // não usados. metodos para ir buscar diretamente sempre as marcas e fornecedores

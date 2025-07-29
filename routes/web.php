@@ -133,9 +133,58 @@ Route::middleware('auth')->group(function () {
             // Ver dashboard dos pedidos
             Route::get('dashboard', [ReceivingController::class, 'dashboard'])->name('dashboard');
 
-             // Ver para receber
+             // Ver todos para receber
             Route::get('index', [ReceivingController::class, 'index'])->name('index');
+
+            // Abrir entrada de mercadorias de um pedido
+            Route::post('{order}/start', [ReceivingController::class, 'startReceiving'])->name('start');
+
+            // Pendentes em aberto
+            Route::get('pending', [ReceivingController::class, 'pending'])->name('pending');
+
+            // Ver fornecedores de um pedido
+            Route::get('{order}/suppliers', [ReceivingController::class, 'showSuppliers'])->name('suppliers');
+
+            // Formulário de receção
+            Route::get('{order}/receive/{supplier}', [ReceivingController::class, 'showForm'])->name('form');
+
+            // Submeter receção
+            Route::post('{order}/receive/{supplier}', [ReceivingController::class, 'store'])->name('store');
+
+            Route::post('{order}/receive/{supplier}/finalize', [ReceivingController::class, 'finalize'])->name('finalize');
+
+            // View para adicionar um produto extra à entrada de mercadorias
+            Route::get('{receiving}/items/single', [ReceivingController::class, 'searchSingle'])
+                ->name('items.single');
+
+            // Submeter produto extra
+            Route::post('{receiving}/items/add-extra', [ReceivingController::class, 'addSingle'])
+                ->name('items.addExtra');
+
+
+            // View para adicionar um produto com scanner à entrada de mercadorias
+            Route::get('{receiving}/items/singleScanner', [ReceivingController::class, 'searchSingleScanner'])
+                ->name('items.singleScanner');
             
+            // Submeter produto com scanner
+            Route::post('{receiving}/items/addSingleScanner', [ReceivingController::class, 'addSingleScanner'])
+                ->name('items.addSingleScanner');
+
+            
+
+            // Elimina um item adicionaado manualmente
+            Route::delete('items/{item}', [ReceivingController::class, 'destroyItem'])->name('items.destroy');
+            
+            // Elimina um lote
+            Route::delete('batches/{batch}', [ReceivingController::class, 'destroyBatch'])->name('batches.destroy');
+
+            // Eliminar uma receção em curso
+            Route::delete('{receiving}/destroy', [ReceivingController::class, 'destroy'])->name('destroy');
+
+            // Adiciona um lote
+            Route::post('items/{item}/batches', [ReceivingController::class, 'storeBatch'])
+                ->name('items.batches.store');
+
         });
 
     });
