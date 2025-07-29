@@ -34,7 +34,7 @@
                     <div class="card-body d-flex flex-column justify-content-center text-center">
                         <div class="mb-3 text-success">
                             <i data-feather="list" class="taxonomy-icons" style="width:48px; height:48px;"></i>
-                            <h5 class="card-title mt-2 mb-1">Pedidos a Fornecedor</h5>
+                            <h5 class="card-title mt-2 mb-1">Pedidos a Fornecedores</h5>
                         </div>
                         <a href="{{ route('orders.dashboard') }}" class="btn btn-sm btn-outline-success col-6 mx-auto">Aceder</a>
                     </div>
@@ -47,9 +47,9 @@
                     <div class="card-body d-flex flex-column justify-content-center text-center">
                         <div class="mb-3 text-warning">
                             <i data-feather="package" class="taxonomy-icons" style="width:48px; height:48px;"></i>
-                            <h5 class="card-title mt-2 mb-1">Receber Encomenda</h5>
+                            <h5 class="card-title mt-2 mb-1">Entrada de Mercadorias</h5>
                         </div>
-                        <a href="#" class="btn btn-sm btn-outline-warning col-6 mx-auto">Aceder</a>
+                        <a href="{{ route('receivings.dashboard') }}" class="btn btn-sm btn-outline-warning col-6 mx-auto">Aceder</a>
                     </div>
                 </div>
             </div>

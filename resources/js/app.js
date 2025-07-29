@@ -103,7 +103,66 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     };
 
+   
+    window.addBatch = function (button) {
+        const itemId = button.dataset.itemId;
+        const productName = button.dataset.productName;
+        const url = button.dataset.url;
 
+        Swal.fire({
+            title: 'Inserir Lote',
+            html:
+                `<h6>${productName}</h6><br>` +
+                '<input id="swal-qty" type="number" class="swal2-input" placeholder="Quantidade" min="1">' +
+                '<input id="swal-batch" type="text" class="swal2-input" placeholder="Nº Lote">' +
+                '<input id="swal-expiry" type="date" class="swal2-input" placeholder="Validade">',
+            confirmButtonText: 'Guardar',
+            showCancelButton: true,
+            preConfirm: () => {
+                const quantity = document.getElementById('swal-qty').value;
+                const batch = document.getElementById('swal-batch').value;
+                const expiry = document.getElementById('swal-expiry').value;
+
+                if (!quantity || !batch || !expiry) {
+                    Swal.showValidationMessage('Todos os campos são obrigatórios');
+                    return false;
+                }
+
+                return { quantity, batch, expiry };
+            }
+        }).then(result => {
+            if (result.isConfirmed) {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        quantity: result.value.quantity,
+                        batch_number: result.value.batch,
+                        expiry_date: result.value.expiry
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire('Sucesso', 'Lote adicionado!', 'success').then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Erro', data.message || 'Erro ao adicionar lote.', 'error');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
+                });
+            }
+        });
+    }
+
+
+    
     // Confirm sensitive changes
     window.confirmSensitiveUpdate = function (storeId) {
         let changed = false;

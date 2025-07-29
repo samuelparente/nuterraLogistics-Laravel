@@ -82,8 +82,8 @@
                         <div class="card-header"><h5 class="card-title mb-0">Estatísticas</h5></div>
                         <div class="card-body">
                             <p><i class="bi bi-clock-history me-1"></i> <strong>{{ $product['LastOutgoingDate'] ?? 'Sem registo' }}</strong></p>
-                            <p><i class="bi bi-graph-up me-1"></i> <strong>{{ $product['SalesLastPeriod'] ?? '0' }}</strong></p>
-                            <p><i class="bi bi-calendar2-check me-1"></i> <strong>{{ $product['SalesPreviousYearPeriod'] ?? '0' }}</strong></p>
+                            <p><i class="bi bi-graph-up me-1"></i> <strong>30 dias: {{ $product['SalesLastPeriod'] ?? '0' }}</strong></p>
+                            <p><i class="bi bi-calendar2-check me-1"></i> <strong>30 dias (período anterior): {{ $product['SalesPreviousYearPeriod'] ?? '0' }}</strong></p>
                             <p><i class="bi bi-lightbulb me-1"></i> <strong>{{ $product['SuggestedQty'] ?? '0' }}</strong></p>
                         </div>
                     </div>

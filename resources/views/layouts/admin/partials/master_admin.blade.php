@@ -81,9 +81,9 @@
                     </li>
                     {{-- Recepção de encomenda --}}
                     <li class="sidebar-item">
-                        <a class="sidebar-link" href="{{ route('users.index') }}">
+                        <a class="sidebar-link" href="{{ route('receivings.dashboard') }}">
                             <i class="align-middle menu-icons-color" data-feather="package"></i>
-                            <span class="align-middle">Receber Encomenda</span>
+                            <span class="align-middle">Entrada de Mercadorias</span>
                         </a>
                     </li> 
                     {{-- Bonificações --}}

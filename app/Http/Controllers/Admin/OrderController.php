@@ -329,7 +329,7 @@ class OrderController extends Controller
                 ->cc('desenvolvimento@peixeverde.pt','fernanda@peixeverde.pt')
                 ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
 
-            $msg = "Pedido enviado com sucesso!<br>Ficheiros gerados:<br>" . implode('<br>', $downloadLinks);
+            $msg = "Pedido enviado com sucesso!";
 
             return redirect()->route('backoffice.dashboard')->with('success', $msg);
 
