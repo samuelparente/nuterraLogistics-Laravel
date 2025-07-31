@@ -34,3 +34,5 @@ auth.json
 # Outros
 *.bat
 *.sh
+.bat
+.sh

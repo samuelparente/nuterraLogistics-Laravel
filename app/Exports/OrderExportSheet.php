@@ -28,21 +28,10 @@ class OrderExportSheet implements FromCollection, WithHeadings, WithStyles, Shou
     public function collection()
     {
         return $this->items->map(function ($item) {
-            $bonus = null;
-
-            if ($item->brand && $item->brand->bonuses->isNotEmpty()) {
-                $bonus = $item->brand->bonuses->first()->description;
-            } elseif ($item->supplier && $item->supplier->bonuses->isNotEmpty()) {
-                $bonus = $item->supplier->bonuses->pluck('description')->implode(', ');
-            }
-
             return [
                 'SKU'              => (string) $item->product_sku,
                 'Código de Barras' => "'" . $item->product_barcode,
                 'Produto'          => $item->product_name,
-                'Marca'            => $item->brand->name ?? '',
-                'Fornecedor'       => $item->supplier->name ?? '',
-                'Bonificações'     => $bonus ?? '',
                 'Quantidade'       => $item->quantity,
             ];
         });
@@ -54,18 +43,15 @@ class OrderExportSheet implements FromCollection, WithHeadings, WithStyles, Shou
             'SKU',
             'Código de Barras',
             'Produto',
-            'Marca',
-            'Fornecedor',
-            'Bonificações',
             'Quantidade',
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
+        $sheet->getStyle('A1:D1')->getFont()->setBold(true);
 
-        $sheet->getStyle('A1:G' . $sheet->getHighestRow())
+        $sheet->getStyle('A1:D' . $sheet->getHighestRow())
               ->getBorders()
               ->getAllBorders()
               ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
