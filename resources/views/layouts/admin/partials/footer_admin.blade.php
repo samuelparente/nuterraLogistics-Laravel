@@ -24,4 +24,6 @@
 <script>
     window.flashSuccess = @json(session('success'));
     window.flashError = @json(session('error'));
+    window.flashErrorCreate = @json(session('errorCreate'));
+
 </script>

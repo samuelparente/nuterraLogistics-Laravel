@@ -1,0 +1,105 @@
+@extends('layouts.admin.partials.master_admin')
+
+@section('content_admin')
+<main class="content">
+  <div class="container-fluid p-0">
+    <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Criar Novo Produto</h1>
+
+    <!-- Botões de ação -->
+    <div class="row mb-3">
+        <div class="col-12 col-lg-12 text-end">
+            <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                {{-- Entrada com scanner (ativo apenas se a receção estiver em curso) --}}
+                <a 
+                    href="{{ route('receivings.items.singleScanner', $receiving->id) }}"
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
+                    {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
+                    <i class="bi bi-upc-scan"></i> Entrada com Scanner
+                </a>
+
+                {{-- Adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
+                <a 
+                    href="{{ route('receivings.items.single', $receiving->id) }}"
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
+                    {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
+                    <i class="bi bi-plus-circle"></i> Adicionar Produto Extra
+                </a>
+
+                {{-- Voltar ao Painel de Entradas em Curso --}}
+                <a 
+                    href="{{ route('receivings.pending') }}"
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Entradas em Curso
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+    @include('layouts.admin.partials.breadcrumbs', [
+        'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
+    ])
+
+    <div class="row mb-3">
+
+            <div class="col-12 col-lg-6">
+                <div class="card">
+                    <div class="card-header"><h5 class="card-title mb-0">Criar e adicionar Produto</h5></div>
+                    <div class="card-body">
+                            <form method="POST" action="{{ route('receivings.items.createAddProduct', $receiving->id)}}">
+                            @csrf
+
+                            <label class="mt-3">SKU</label>
+                            <input type="text" name="item_sku" class="form-control" required>
+
+                            <label class="mt-3">Código de Barras</label>
+                            <input type="text" name="bar_code" class="form-control" required>
+
+                            <label class="mt-3">Nome</label>
+                            <input type="text" name="product_name" class="form-control" required>
+
+                            <label for="supplier_id" class="form-label mt-3">Fornecedor</label>
+                            <select name="supplier_id" id="supplier_id" class="form-select">
+                                <option value="">Todos</option>
+                                @foreach ($suppliers as $supplier)
+                                    <option value="{{ $supplier['id'] }}">
+                                        {{ $supplier['name'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        
+                            <label for="brand_id" class="form-label mt-3">Marca</label>
+                            <select name="brand_id" id="brand_id" class="form-select">
+                                <option value="">Todas</option>
+                                @foreach ($brands as $brand)
+                                    <option value="{{ $brand['id'] }}">
+                                        {{ $brand['name'] }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            <label class="mt-3">Quantidade Recebida</label>
+                            <input type="number" name="quantity" class="form-control" min="1" value="1" required>
+
+                            <label class="mt-3">Lote</label>
+                            <input type="text" name="batch_number" class="form-control" required>
+
+                            <label class="mt-3">Data de Validade</label>
+                            <input type="date" name="expiry_date" class="form-control" required>
+
+                            <div class="text-end mt-3">
+                                <button type="submit" class="btn btn-success">Criar e Adicionar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <a href="{{ route('receivings.form', ['order' => $receiving->order_id, 'supplier' => $receiving->supplier_id]) }}" class="btn btn-outline-secondary">
+        Voltar
+    </a>
+  </div>
+</main>
+@endsection

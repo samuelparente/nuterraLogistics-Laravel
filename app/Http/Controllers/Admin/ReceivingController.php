@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admin\Supplier;
+use App\Models\Admin\Brand;
 use App\Models\Admin\Order;
 use App\Models\Admin\OrderItem;
 use App\Models\Admin\Receiving;
@@ -24,16 +25,43 @@ class ReceivingController extends Controller
         return view('layouts.admin.receivings.dashboard', compact('hasPendingReceivings', 'hasActiveOrders'));
     }
 
-
     public function index()
     {
         $orders = Order::with(['items.supplier'])
             ->whereHas('status', fn($q) => $q->where('code', 'active'))
+            ->whereHas('items', function ($query) {
+                $query->whereHas('supplier')
+                    ->whereRaw('NOT EXISTS (
+                        SELECT 1 FROM receivings
+                        WHERE receivings.order_id = order_items.order_id
+                        AND receivings.supplier_id = order_items.supplier_id
+                        AND receivings.received_at IS NULL
+                        AND receivings.deleted_at IS NULL
+                    )');
+            })
             ->orderByDesc('created_at')
             ->paginate(paginationPerPage());
 
+        // Adiciona property customizada: suppliers_without_receiving
+        foreach ($orders as $order) {
+            $suppliers = $order->items
+                ->filter(fn($item) => $item->supplier)
+                ->pluck('supplier')
+                ->unique('id');
+
+            $order->suppliers_without_receiving = $suppliers->filter(function ($supplier) use ($order) {
+                return !Receiving::where('order_id', $order->id)
+                    ->where('supplier_id', $supplier->id)
+                    ->whereNull('received_at')
+                    ->whereNull('deleted_at')
+                    ->exists();
+            });
+        }
+
         return view('layouts.admin.receivings.index', compact('orders'));
     }
+
+
 
     public function startReceiving(Order $order)
     {
@@ -82,6 +110,61 @@ class ReceivingController extends Controller
         }
     }
 
+    public function startReceivingBySupplier(Request $request)
+    {
+        $request->validate([
+            'order_id' => 'required|exists:orders,id',
+            'supplier_id' => 'required|exists:suppliers,id',
+        ]);
+
+        $order = Order::with('items')->findOrFail($request->order_id);
+
+        // Filtrar itens apenas deste fornecedor
+        $items = $order->items->where('supplier_id', $request->supplier_id);
+
+        if ($items->isEmpty()) {
+            return back()->with('warning', 'Nenhum item deste fornecedor no pedido.');
+        }
+
+        try {
+            // Criar ou obter receção existente
+            $receiving = Receiving::firstOrCreate(
+                [
+                    'order_id'    => $order->id,
+                    'supplier_id' => $request->supplier_id,
+                ],
+                [
+                    'started_at' => now(),
+                    'status_id'  => 7, // exemplo: 'em curso'
+                ]
+            );
+
+            // Garantir que os itens estão associados à receção
+            foreach ($items as $item) {
+                ReceivingItem::firstOrCreate(
+                    [
+                        'receiving_id'  => $receiving->id,
+                        'order_item_id' => $item->id,
+                    ],
+                    [
+                        'product_sku'     => $item->product_sku,
+                        'product_name'    => $item->product_name,
+                        'product_barcode' => $item->product_barcode,
+                        'supplier_id'     => $item->supplier_id,
+                        'brand_id'        => $item->brand_id,
+                        'ordered_qty'     => $item->quantity,
+                        'received_qty'    => 0, // ou valor padrão
+                        'notes'           => null,
+                    ]
+                );
+            }
+
+            return redirect()->route('receivings.index')
+                ->with('success', 'Entrada iniciada para o fornecedor selecionado.');
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+        }
+    }
 
 
     public function pending()
@@ -130,9 +213,8 @@ class ReceivingController extends Controller
 
         return redirect()
             ->route('receivings.form', ['order' => $receiving->order_id, 'supplier' => $receiving->supplier_id])
-            ->with('success', 'Receção guardada com sucesso.');
+            ->with('success', 'Progresso guardado.');
     }
-
 
     public function finalize(Request $request, Order $order, Supplier $supplier)
     {
@@ -144,26 +226,36 @@ class ReceivingController extends Controller
             ->where('supplier_id', $supplier->id)
             ->firstOrFail();
 
-        DB::transaction(function () use ($receiving, $validated) {
-            foreach ($receiving->items as $item) {
-                $totalQty = $item->batches()->sum('quantity');
+        try {
+            DB::transaction(function () use ($receiving, $validated) {
+                foreach ($receiving->items as $item) {
+                    $totalQty = $item->batches()->sum('quantity');
 
-                $item->update([
-                    'received_qty' => $totalQty ?? 0, // Se não houver lotes, grava 0
+                    // Validação: lote obrigatório com quantidade
+                    if ($totalQty <= 0) {
+                        throw new \Exception("Sem lote e quantidade no item '{$item->product_name}'. Entrada não finalizada.");
+                    }
+
+                    $item->update([
+                        'received_qty' => $totalQty,
+                    ]);
+                }
+
+                $receiving->update([
+                    'notes' => $validated['notes'] ?? null,
+                    'received_at' => now(),
+                    'received_by' => auth()->id(),
+                    'status_id' => 5, // finalizado/arquivado
                 ]);
-            }
+            });
 
-            $receiving->update([
-                'notes' => $validated['notes'] ?? null,
-                'received_at' => now(),
-                'received_by' => auth()->id(),
-                'status_id' => 5, // archived
-            ]);
-        });
-
-        return redirect()
-            ->route('receivings.pending')
-            ->with('success', 'Receção finalizada e arquivada com sucesso.');
+            return redirect()
+                ->route('receivings.pending')
+                ->with('success', 'Entrada finalizada e arquivada com sucesso.');
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', $e->getMessage() ?: 'Ocorreu um erro inesperado. Contace o suporte.');
+        }
     }
 
 
@@ -196,7 +288,7 @@ class ReceivingController extends Controller
             if (!$product) {
                 return redirect()
                     ->route('receivings.items.singleScanner', $receiving->id)
-                    ->with('error', 'Produto não encontrado.');
+                    ->with('errorCreate', 'Este produto não existe. Criar novo?');
             }
         }
 
@@ -334,28 +426,22 @@ class ReceivingController extends Controller
         }
     }
 
-
-
-    public function destroy(Receiving $receiving)
+   public function destroy(Receiving $receiving)
     {
         try {
             DB::transaction(function () use ($receiving) {
-                $allToDelete = Receiving::where('order_id', $receiving->order_id)
-                    ->whereNull('received_at')
-                    ->get();
+                // Elimina os itens associados
+                $receiving->items()->delete();
 
-                foreach ($allToDelete as $rec) {
-                    $rec->items()->delete();
-                    $rec->delete(); // soft delete
-                }
+                // Soft delete da própria receção
+                $receiving->delete();
             });
 
-            return redirect()->back()->with('success', 'Entradas de mercadorias eliminadas com sucesso.');
+            return redirect()->back()->with('success', 'Entrada eliminada.');
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
         }
     }
-
 
     public function storeBatch(Request $request, ReceivingItem $item)
     {
@@ -376,6 +462,24 @@ class ReceivingController extends Controller
         } catch (\Throwable $e) {
             return response()->json(['success' => false, 'message' => 'Erro ao guardar o lote.' . $e], 500);
         }
+    }
+
+    public function createProduct(Request $request, Receiving $receiving, ErpController $erpController)
+    {
+
+        $suppliers = Supplier::orderBy('name')->get();
+        $brands = Brand::orderBy('name')->get();
+        return view('layouts.admin.receivings.create',compact('receiving', 'suppliers', 'brands'));
+
+    }
+
+     public function createAddProduct(Request $request, Receiving $receiving, ErpController $erpController)
+    {
+
+        $suppliers = Supplier::orderBy('name')->get();
+        $brands = Brand::orderBy('name')->get();
+        return view('layouts.admin.receivings.singleScanner', compact('receiving'));
+
     }
 
 }

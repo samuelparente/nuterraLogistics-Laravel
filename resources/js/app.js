@@ -34,6 +34,29 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+        // erro produto nao existe e chama view para criar
+        if (window.flashErrorCreate) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: window.flashErrorCreate,
+            showCancelButton: true,
+            confirmButtonText: 'Criar Produto',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: corPrincipal,
+            cancelButtonColor: '#6c757d',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Vai para a tela de criação
+                window.location.href = createProductUrl;
+            } else if (result.dismiss === Swal.DismissReason.cancel) {
+                // Volta para a página anterior
+                window.history.back();
+            }
+        });
+    }
+
+
     window.showInfoSwal = function (title, htmlContent) {
         Swal.fire({
             title: title,
@@ -108,6 +131,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const itemId = button.dataset.itemId;
         const productName = button.dataset.productName;
         const url = button.dataset.url;
+         const corConfirmacao = '#ffbb00';
 
         Swal.fire({
             title: 'Inserir Lote',
@@ -117,6 +141,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 '<input id="swal-batch" type="text" class="swal2-input" placeholder="Nº Lote">' +
                 '<input id="swal-expiry" type="date" class="swal2-input" placeholder="Validade">',
             confirmButtonText: 'Guardar',
+            confirmButtonColor: corConfirmacao,
+            cancelButtonText: 'Cancelar',
             showCancelButton: true,
             preConfirm: () => {
                 const quantity = document.getElementById('swal-qty').value;
@@ -155,7 +181,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     }
                 })
                 .catch(() => {
-                    Swal.fire('Erro', 'Erro de comunicação com o servidor.', 'error');
+                    Swal.fire('Erro', 'Ocorreu um erro inesperado. Contacte o suporte.', 'error');
                 });
             }
         });

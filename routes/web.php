@@ -136,8 +136,12 @@ Route::middleware('auth')->group(function () {
              // Ver todos para receber
             Route::get('index', [ReceivingController::class, 'index'])->name('index');
 
-            // Abrir entrada de mercadorias de um pedido
+            // Abrir entrada de mercadorias de um pedido e todos fornededores
             Route::post('{order}/start', [ReceivingController::class, 'startReceiving'])->name('start');
+
+            // Abrir entrada de mercadorias de um pedido e só um fornecedor
+            Route::post('start-by-supplier', [ReceivingController::class, 'startReceivingBySupplier'])
+                ->name('start.bySupplier');
 
             // Pendentes em aberto
             Route::get('pending', [ReceivingController::class, 'pending'])->name('pending');
@@ -161,6 +165,13 @@ Route::middleware('auth')->group(function () {
             Route::post('{receiving}/items/add-extra', [ReceivingController::class, 'addSingle'])
                 ->name('items.addExtra');
 
+            // View para adicionar um produto novo à entrada de mercadorias - criar e inserir
+            Route::get('{receiving}/items/createProduct', [ReceivingController::class, 'createProduct'])
+                ->name('items.createProduct');
+            
+            // Criar e inserir produto novo na recepção
+            Route::post('{receiving}/items/createAddProduct', [ReceivingController::class, 'createAddProduct'])
+                ->name('items.createAddProduct');
 
             // View para adicionar um produto com scanner à entrada de mercadorias
             Route::get('{receiving}/items/singleScanner', [ReceivingController::class, 'searchSingleScanner'])
@@ -169,8 +180,6 @@ Route::middleware('auth')->group(function () {
             // Submeter produto com scanner
             Route::post('{receiving}/items/addSingleScanner', [ReceivingController::class, 'addSingleScanner'])
                 ->name('items.addSingleScanner');
-
-            
 
             // Elimina um item adicionaado manualmente
             Route::delete('items/{item}', [ReceivingController::class, 'destroyItem'])->name('items.destroy');

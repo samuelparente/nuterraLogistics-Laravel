@@ -166,5 +166,9 @@ return [
         ['label' => 'Produto Extra', 'route' => null, 'icon' => 'bi-plus-circle'],
     ],
 
-
+    'receivings.items.singleScanner' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Entrada com Scanner', 'route' => null, 'icon' => 'bi-upc-scan'],
+    ],
 ];

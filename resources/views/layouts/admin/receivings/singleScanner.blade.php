@@ -3,7 +3,23 @@
 @section('content_admin')
 <main class="content">
   <div class="container-fluid p-0">
-    <h1 class="h3 mb-3"><strong>ENTRADA COM SCANNER</strong> | Receção #{{ $receiving->id }}</h1>
+    <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Entrada com Scanner</h1>
+    <span class="text-muted">Pedido #{{ $receiving->id }} > {{ $receiving->supplier->name }} </span>
+    <!-- Botões de ação -->
+    <div class="row mb-3">
+        <div class="col-12 col-lg-12 text-end">
+            <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                {{-- Voltar ao Painel de Entradas em Curso --}}
+                <a 
+                    href="{{ route('receivings.pending') }}"
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Entradas em Curso
+                </a>
+
+            </div>
+        </div>
+    </div>
 
     @include('layouts.admin.partials.breadcrumbs', [
         'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
