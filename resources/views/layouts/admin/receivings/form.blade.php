@@ -3,9 +3,8 @@
 @section('content_admin')
 <main class="content">
   <div class="container-fluid p-0">
-    <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | {{ $supplier->name }} (Pedido #{{ $order->id }})</h1>
-
-    
+    <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Listagem dos Produtos</h1>
+    <span class="text-muted">Pedido #{{ $receiving->id }} > {{ $receiving->supplier->name }} </span>
     <!-- Botões de ação -->
     <div class="row mb-3">
         <div class="col-12 col-lg-12 text-end">
@@ -17,6 +16,14 @@
                     class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
                     {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
                     <i class="bi bi-upc-scan"></i> Entrada com Scanner
+                </a>
+
+                {{-- Criar e adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
+                <a 
+                    href="{{ route('receivings.items.createProduct', $receiving->id) }}"
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
+                    {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
+                    <i class="bi bi-plus-circle"></i> Criar e Adicionar Produto Extra
                 </a>
 
                 {{-- Adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
@@ -46,7 +53,7 @@
 
   
         <div class="card">
-            <div class="card-header"><h5 class="card-title mb-0">Artigos Recebidos</h5></div>
+            <div class="card-header"><h5 class="card-title mb-0">Produtos Recebidos</h5></div>
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-condensed table-hover align-middle table-bordered">
@@ -71,11 +78,22 @@
                                         {{-- Mostrar lotes existentes --}}
                                         @php
                                             $totalReceived = $item->batches->sum('quantity');
+                                            if($totalReceived!=$item->ordered_qty){
+                                                $qty_error=true;
+                                            }
+                                            else{
+                                                $qty_error=false;
+                                            }
                                         @endphp
 
                                         @if($item->batches->count())
                                             <div>
                                                 <span class="badge bg-dark mt-1 mb-1" >Total: {{ $totalReceived }}</span>
+                                                @if($qty_error)
+                                                    <span class="badge bg-danger mt-1 mb-1" title="Quantidade diferente da encomendada"><i class="bi bi-exclamation-triangle"></i></span>
+                                                @else
+                                                    <span class="badge bg-success mt-1 mb-1" title="Quantidade correcta"><i class="bi bi-check-circle"></i></span>
+                                                @endif
                                             </div>
 
                                             @foreach ($item->batches as $batch)
@@ -173,13 +191,13 @@
                     {{-- Ações --}}
                     <div class="d-flex gap-2">
                         {{-- Guardar (POST para store) --}}
-                        <button type="submit" formaction="{{ route('receivings.store', [$order->id, $supplier->id]) }}" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Guardar
+                        <button type="submit" formaction="{{ route('receivings.store', [$order->id, $supplier->id]) }}" class="btn btn-secondary">
+                            Guardar Progresso
                         </button>
 
                         {{-- Finalizar (POST para finalize) --}}
-                        <button type="submit" formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}" class="btn btn-success">
-                            <i class="bi bi-check-circle"></i> Finalizar Receção
+                        <button type="submit" formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}" class="btn btn-primary">
+                            Finalizar Entrada
                         </button>
                     </div>
                 </form>

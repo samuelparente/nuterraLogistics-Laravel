@@ -1,6 +1,8 @@
 <?php
+
 namespace App\Exports;
 
+use App\Models\Admin\Bonus;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -8,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class OrderExportSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithTitle
 {
@@ -27,12 +30,30 @@ class OrderExportSheet implements FromCollection, WithHeadings, WithStyles, Shou
 
     public function collection()
     {
-        return $this->items->map(function ($item) {
+        $bonuses = Bonus::whereNull('deleted_at')->get();
+
+        return $this->items->map(function ($item) use ($bonuses) {
+            $applicableBonuses = $bonuses->filter(function ($b) use ($item) {
+                return $b->supplier_id === $item->supplier_id || $b->brand_id === $item->brand_id;
+            });
+
+            $bonusText = $applicableBonuses->map(function ($b) {
+                $desc = trim($b->description ?? '');
+                $notes = trim($b->notes ?? '');
+                $line = "{$b->name}";
+                if ($desc) $line .= ": {$desc}";
+                if ($notes) $line .= " — {$notes}";
+                return $line;
+            })->implode("\n");
+
             return [
                 'SKU'              => (string) $item->product_sku,
-                'Código de Barras' => "'" . $item->product_barcode,
-                'Produto'          => $item->product_name,
+                'Código de Barras' => "'" . (string) $item->product_barcode,
+                'Produto'          => (string) $item->product_name,
                 'Quantidade'       => $item->quantity,
+                'Bónus'            => $bonusText,
+                'Marca'            => (string) optional($item->brand)->name,
+                'Fornecedor'       => (string) optional($item->supplier)->name,
             ];
         });
     }
@@ -44,17 +65,36 @@ class OrderExportSheet implements FromCollection, WithHeadings, WithStyles, Shou
             'Código de Barras',
             'Produto',
             'Quantidade',
+            'Bónus',
+            'Marca',
+            'Fornecedor',
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
-        $sheet->getStyle('A1:D1')->getFont()->setBold(true);
+        // Negrito no cabeçalho
+        $sheet->getStyle('A1:G1')->getFont()->setBold(true);
 
-        $sheet->getStyle('A1:D' . $sheet->getHighestRow())
+        // Bordas para todas as células
+        $sheet->getStyle('A1:G' . $sheet->getHighestRow())
               ->getBorders()
               ->getAllBorders()
               ->setBorderStyle(\PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN);
+
+        // Formatar colunas como texto (exceto D = Quantidade)
+        $columnsAsText = ['A', 'B', 'C', 'E', 'F', 'G'];
+
+        foreach ($columnsAsText as $col) {
+            $sheet->getStyle("{$col}2:{$col}" . $sheet->getHighestRow())
+                  ->getNumberFormat()
+                  ->setFormatCode(NumberFormat::FORMAT_TEXT);
+        }
+
+        // Ativar quebra de linha automática na coluna Bónus (E)
+        $sheet->getStyle('E2:E' . $sheet->getHighestRow())
+              ->getAlignment()
+              ->setWrapText(true);
 
         return [];
     }

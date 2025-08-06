@@ -54,24 +54,42 @@
                                     <td>{{ $item->supplier->name ?? '' }}</td>
 
                                     <td class="text-center">
-                                        @if ($item->bonusLabel)
-                                            <span 
-                                                class="badge bg-success"
-                                                data-bs-toggle="tooltip"
-                                                title="{{ $item->bonusTooltip }}">
-                                                <i class="bi bi-gift-fill"></i>
-                                            </span>
-                                        @else
-                                        <span 
-                                                class="badge bg-danger"
-                                                data-bs-toggle="tooltip"
-                                                title="Sem Bonificações">
-                                                <i class="bi bi-gift-fill"></i>
-                                            </span>
-                                        @endif
-                                    </td>
+                                            @if (!empty($item->Bonuses) && collect($item->Bonuses)->isNotEmpty())
+                                                @php
+                                                    $popoverId = 'popover-' . $loop->index;
 
+                                                    $popoverHtml = collect($item['Bonuses'])->map(function ($bonus) {
+                                                        $desc = e($bonus['description'] ?? '');
+                                                        $notes = !empty($bonus['notes']) ? e($bonus['notes']) : null;
 
+                                                        return '<span class="badge bg-light text-dark d-block mb-1" style="font-size: 0.75rem;">'
+                                                            . $desc . ($notes ? ' — ' . $notes : '') .
+                                                            '</span>';
+                                                    })->implode('');
+                                                @endphp
+
+                                                {{-- Botão para ativar popover --}}
+                                                <span
+                                                    class="badge bg-success"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    data-bs-toggle="popover"
+                                                    data-bs-trigger="focus"
+                                                    data-bs-placement="top"
+                                                    data-popover-content="{{ $popoverId }}"
+                                                    data-bs-title="Bónus disponíveis"
+                                                    data-bs-custom-class="custom-popover"
+                                                >
+                                                    <i class="bi bi-gift-fill"></i>
+                                                </span>
+
+                                                {{-- Conteúdo escondido com o HTML real --}}
+                                                <div id="{{ $popoverId }}" class="d-none">
+                                                    {!! $popoverHtml !!}
+                                                </div>
+                                            @endif
+
+                                        </td>
                                     <td>
                                         <input type="number" 
                                             name="quantities[{{ $item->id }}]" 
@@ -117,9 +135,18 @@
     </div>
 </main>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltips.forEach(t => new bootstrap.Tooltip(t));
+document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+            const contentId = el.getAttribute('data-popover-content');
+            const contentElement = document.getElementById(contentId);
+            const htmlContent = contentElement ? contentElement.innerHTML : '';
+
+            new bootstrap.Popover(el, {
+                html: true,
+                content: htmlContent,
+                container: 'body',
+            });
+        });
     });
 </script>
 

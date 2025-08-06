@@ -113,20 +113,40 @@
         <div class="row">
             <div class="col-12">
                 <div class="card flex-fill">
-                    <div class="card-header"><h5 class="card-title mb-0">Lista de Produtos</h5></div>
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Lista de Produtos | <span class="text-muted" style="font-size:0.8rem;font-weight:normal;">Total encontrado: {{ count($products) }}</span></h5>
+                        
+                </div>
                     <div class="card-body table-responsive">
                         <table class="table table-condensed table-hover align-middle table-bordered">
                             <thead>
                                 <tr class="align-middle">
-                                    <th class="align-middle"><input class="custom-checkbox checkbox-large" type="checkbox" id="select-all" checked/></th>
-                                    <th title="SKU"><i class="bi bi-hash table-icons"></i></th>
-                                    <th title="Código de Barras"><i class="bi bi-upc-scan table-icons"></i></th>
-                                    <th title="Nome do Produto"><i class="bi bi-card-text table-icons"></i></th>
 
                                     @php
                                         $sort = request('sort');
                                         $currentDirection = request('direction', 'asc');
                                     @endphp
+
+                                    <th class="align-middle"><input class="custom-checkbox checkbox-large" type="checkbox" id="select-all" checked/></th>
+                                    <th title="SKU"><i class="bi bi-hash table-icons"></i></th>
+                                    <th title="Código de Barras"><i class="bi bi-upc-scan table-icons"></i></th>
+                                    
+                                    <th title="Nome do Produto">
+                                        <a href="{{ request()->fullUrlWithQuery([
+                                            'sort' => 'ProductName',
+                                            'direction' => ($sort === 'ProductName' && $currentDirection === 'asc') ? 'desc' : 'asc'
+                                        ]) }}"
+                                        class="text-decoration-none text-dark d-flex justify-content-between align-items-center gap-2">
+
+                                            <i class="bi bi-card-text table-icons"></i>
+
+                                            <span class="d-inline-flex flex-column lh-1">
+                                                <i class="bi bi-caret-up{{ $sort === 'ProductName' && $currentDirection === 'asc' ? '-fill text-primary' : ' text-muted' }}"></i>
+                                                <i class="bi bi-caret-down{{ $sort === 'ProductName' && $currentDirection === 'desc' ? '-fill text-primary' : ' text-muted' }}"></i>
+                                            </span>
+                                        </a>
+                                    </th>
+
 
                                    <th class="" title="Stock Disponível">
                                         <a href="{{ request()->fullUrlWithQuery([
@@ -226,11 +246,41 @@
                                             {{ isset($product['CostPrice']) ? number_format($product['CostPrice'], 2, ',', '.') . ' €' : '' }}
                                         </td>
                                         <td class="text-center">
-                                            @if ($product['HasBonus'])
-                                                <span class="badge bg-success" data-bs-toggle="tooltip" title="{{ $product['BonusDescription'] }}">
+                                            @if (!empty($product['Bonuses']) && collect($product['Bonuses'])->isNotEmpty())
+                                                @php
+                                                    $popoverId = 'popover-' . $loop->index;
+
+                                                    $popoverHtml = collect($product['Bonuses'])->map(function ($bonus) {
+                                                        $desc = e($bonus['description'] ?? '');
+                                                        $notes = !empty($bonus['notes']) ? e($bonus['notes']) : null;
+
+                                                        return '<span class="badge bg-light text-dark d-block mb-1" style="font-size: 0.75rem;">'
+                                                            . $desc . ($notes ? ' — ' . $notes : '') .
+                                                            '</span>';
+                                                    })->implode('');
+                                                @endphp
+
+                                                {{-- Botão para ativar popover --}}
+                                                <span
+                                                    class="badge bg-success"
+                                                    role="button"
+                                                    tabindex="0"
+                                                    data-bs-toggle="popover"
+                                                    data-bs-trigger="focus"
+                                                    data-bs-placement="top"
+                                                    data-popover-content="{{ $popoverId }}"
+                                                    data-bs-title="Bónus disponíveis"
+                                                    data-bs-custom-class="custom-popover"
+                                                >
                                                     <i class="bi bi-gift-fill"></i>
                                                 </span>
+
+                                                {{-- Conteúdo escondido com o HTML real --}}
+                                                <div id="{{ $popoverId }}" class="d-none">
+                                                    {!! $popoverHtml !!}
+                                                </div>
                                             @endif
+
                                         </td>
                                         <td>{{ $product['BrandName'] ?? '' }}</td>
                                         <td>{{ $product['SupplierName'] ?? '' }}</td>
@@ -270,9 +320,20 @@
     </div>
 </main>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-        tooltips.forEach(t => new bootstrap.Tooltip(t));
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+        const contentId = el.getAttribute('data-popover-content');
+        const contentElement = document.getElementById(contentId);
+        const htmlContent = contentElement ? contentElement.innerHTML : '';
+
+        new bootstrap.Popover(el, {
+            html: true,
+            content: htmlContent,
+            container: 'body',
+        });
     });
+});
+
 </script>
+
 @endsection

@@ -36,21 +36,31 @@
                                             <td>{{ $order->created_at->format('d/m/Y H:i') }}</td>
                                             <td>{{ $order->items->count() }}</td>
                                             <td>
-                                                @php
-                                                    $suppliers = $order->items
-                                                        ->filter(fn($item) => $item->supplier)
-                                                        ->pluck('supplier.name')
-                                                        ->unique();
-                                                @endphp
-
-                                                @if ($suppliers->count())
-                                                    @foreach ($suppliers as $supplierName)
-                                                        <span class="badge bg-light text-dark mb-1">{{ $supplierName }}</span><br>
+                                               @if ($order->suppliers_without_receiving->count())
+                                                    @foreach ($order->suppliers_without_receiving as $supplier)
+                                                            <span class="badge bg-primary-subtle text-dark mt-2 mb-2 d-flex justify-content-between align-items-center px-2 py-2">
+                                                               
+                                                                <span class="text-start" style="width: 90%;">
+                                                                {{ $supplier->name }}</span>
+                                                                
+                                                                <span class="ms-1" style="width: 10%;font-size:0.9rem;">
+                                                                    <form action="{{ route('receivings.start.bySupplier') }}" method="POST" style="display:inline;">
+                                                                        @csrf
+                                                                        <input type="hidden" name="order_id" value="{{ $order->id }}">
+                                                                        <input type="hidden" name="supplier_id" value="{{ $supplier->id }}">
+                                                                        <button type="submit" class="btn btn-sm btn-outline-primary btn-general" title="Abrir Entrada para {{ $supplier->name }}">
+                                                                            <i class="bi bi-box-arrow-in-down"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                </span>
+                                                            </span>
                                                     @endforeach
                                                 @else
-                                                    <span class="text-muted">Sem fornecedor</span>
+                                                    <span class="text-muted">Todos os fornecedores já têm receção iniciada.</span>
                                                 @endif
+
                                             </td>
+
                                             <td>
                                                 @php
                                                     $openReceiving = \App\Models\Admin\Receiving::where('order_id', $order->id)
@@ -60,7 +70,7 @@
 
                                                 @if ($openReceiving)
                                                     {{-- Botão de Eliminar Entrada --}}
-                                                    <a href="#" 
+                                                    <!-- <a href="#" 
                                                     class="btn btn-sm btn-outline-danger btn-general" 
                                                     onclick="confirmDelete({{ $openReceiving->id }})" 
                                                     title="Eliminar Entrada de Mercadorias">
@@ -73,12 +83,12 @@
                                                         style="display: none;">
                                                         @csrf
                                                         @method('DELETE')
-                                                    </form>
+                                                    </form> -->
                                                 @else
                                                     {{-- Botão de abrir nova receção --}}
                                                     <form action="{{ route('receivings.start', $order->id) }}" method="POST" style="display:inline;">
                                                         @csrf
-                                                        <button type="submit" class="btn btn-sm btn-outline-secondary btn-general" title="Abrir Entrada de Mercadorias">
+                                                        <button type="submit" class="btn btn-sm btn-outline-secondary btn-general" title="Abrir Entrada para Todos.">
                                                             <i class="bi bi-dropbox"></i>
                                                         </button>
                                                     </form>

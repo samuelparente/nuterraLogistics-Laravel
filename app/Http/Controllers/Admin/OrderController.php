@@ -72,36 +72,32 @@ class OrderController extends Controller
     }
 
     public function edit(Request $request)
-    {
-        $order = Order::whereHas('status', fn ($q) => $q->where('code', 'pending'))
-            ->with(['items.brand.bonuses', 'items.supplier.bonuses'])
-            ->first();
+{
+    $order = Order::whereHas('status', fn ($q) => $q->where('code', 'pending'))
+        ->with(['items.brand.bonuses', 'items.supplier.bonuses'])
+        ->first();
 
-        if (!$order) {
-            return redirect()->route('orders.index')->with('error', 'Nenhum pedido em aberto encontrado.');
-        }
-
-        foreach ($order->items as $item) {
-            $brandBonuses = $item->brand?->bonuses;
-            $supplierBonuses = $item->supplier?->bonuses;
-
-            if ($brandBonuses && $brandBonuses->isNotEmpty()) {
-                // Prioriza o primeiro bónus da marca
-                $item->bonusLabel = $brandBonuses->first()?->name;
-                $item->bonusTooltip = $brandBonuses->first()?->description ?? 'Sem descrição';
-            } elseif ($supplierBonuses && $supplierBonuses->isNotEmpty()) {
-                // Caso não exista bónus da marca, junta todos os do fornecedor
-                $item->bonusLabel = 'Bónus Fornecedor';
-                $item->bonusTooltip = $supplierBonuses->pluck('name')->implode(', ');
-            } else {
-                // Nenhum bónus
-                $item->bonusLabel = null;
-                $item->bonusTooltip = null;
-            }
-        }
-
-        return view('layouts.admin.orders.edit', compact('order'));
+    if (!$order) {
+        return redirect()->route('orders.index')->with('error', 'Nenhum pedido em aberto encontrado.');
     }
+
+    foreach ($order->items as $item) {
+        $brandBonuses = $item->brand?->bonuses ?? collect();
+        $supplierBonuses = $item->supplier?->bonuses ?? collect();
+
+        $allBonuses = $brandBonuses->merge($supplierBonuses)->unique('id');
+
+        // 👉 Adiciona uma propriedade 'Bonuses' no mesmo formato usado nas outras views
+        $item->Bonuses = $allBonuses->map(function ($b) {
+            return [
+                'description' => $b->description ?? $b->name,
+                'notes' => $b->notes ?? null,
+            ];
+        })->values()->all(); // Garante array limpo com índices numéricos
+    }
+
+    return view('layouts.admin.orders.edit', compact('order'));
+}
 
 
     public function createEmpty(Request $request)
@@ -215,7 +211,7 @@ class OrderController extends Controller
                 'order_id' => $openOrder->id,
                 'product_sku' => $request->item_sku,
                 'quantity' => (int) $request->quantity,
-                'product_barcode' => $request->barcode ?? null,
+                'product_barcode' => $request->bar_code ?? null,
                 'product_name' => $request->product_name ?? null,
                 'supplier_id' => $request->supplier_id ?? null,
                 'brand_id' => $request->brand_id ?? null,
@@ -325,8 +321,7 @@ class OrderController extends Controller
             $order->save();
 
             // Enviar email com ficheiros anexos
-            Mail::to('sofia@peixeverde.pt')
-                ->cc('desenvolvimento@peixeverde.pt','fernanda@peixeverde.pt')
+            Mail::to('desenvolvimento@peixeverde.pt')
                 ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
 
             $msg = "Pedido enviado com sucesso!";
@@ -338,7 +333,7 @@ class OrderController extends Controller
             $order->status_id = 3;
             $order->save();
 
-            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.' . $e);
+            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.');
         }
     }
 
