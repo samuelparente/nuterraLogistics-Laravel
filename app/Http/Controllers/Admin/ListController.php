@@ -22,7 +22,7 @@ class ListController extends Controller
         $brands = Brand::orderBy('name')->get();
         $products = collect();
 
-        $allowedSorts = ['StockQty', 'SuggestedQty'];
+        $allowedSorts = ['StockQty', 'SuggestedQty', 'ProductName'];
         $sort = in_array($request->input('sort'), $allowedSorts) ? $request->input('sort') : null;
         $direction = in_array($request->input('direction'), ['asc', 'desc']) ? $request->input('direction') : 'asc';
 
@@ -50,12 +50,41 @@ class ListController extends Controller
         if ($filters['supplier_id'] || $filters['brand_id'] || $filters['search']) {
             $products = $erpController->getProducts(new Request($filters));
 
+            
             // Só ordena se houver produtos
             if (in_array($sort, ['StockQty', 'SuggestedQty']) && $products->isNotEmpty()) {
                 $products = $direction === 'desc'
                     ? $products->sortByDesc($sort)
                     : $products->sortBy($sort);
             }
+
+            elseif ($sort === 'ProductName' && $products->isNotEmpty()) {
+                // Mapeamento de acentos para equivalente sem acento
+                $normalize = function ($string) {
+                    $map = [
+                        'Á'=>'A','À'=>'A','Â'=>'A','Ã'=>'A','Ä'=>'A',
+                        'á'=>'a','à'=>'a','â'=>'a','ã'=>'a','ä'=>'a',
+                        'É'=>'E','È'=>'E','Ê'=>'E','Ë'=>'E',
+                        'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
+                        'Í'=>'I','Ì'=>'I','Î'=>'I','Ï'=>'I',
+                        'í'=>'i','ì'=>'i','î'=>'i','ï'=>'i',
+                        'Ó'=>'O','Ò'=>'O','Ô'=>'O','Õ'=>'O','Ö'=>'O',
+                        'ó'=>'o','ò'=>'o','ô'=>'o','õ'=>'o','ö'=>'o',
+                        'Ú'=>'U','Ù'=>'U','Û'=>'U','Ü'=>'U',
+                        'ú'=>'u','ù'=>'u','û'=>'u','ü'=>'u',
+                        'Ç'=>'C','ç'=>'c',
+                        'Ñ'=>'N','ñ'=>'n',
+                    ];
+
+                    return strtr(mb_strtolower($string), $map);
+                };
+
+                $products = $direction === 'desc'
+                    ? $products->sortByDesc(fn ($p) => $normalize($p['ProductName']))
+                    : $products->sortBy(fn ($p) => $normalize($p['ProductName']));
+            }
+
+
 
         }
 

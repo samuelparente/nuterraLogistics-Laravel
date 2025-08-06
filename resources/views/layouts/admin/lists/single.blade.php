@@ -95,13 +95,21 @@
                         <div class="card">
                             <div class="card-header"><h5 class="card-title mb-0">Bonificações</h5></div>
                             <div class="card-body">
-                                <p><i class="bi bi-gift-fill me-1 text-success"></i>
-                                    <strong>{{ $product['BonusDescription'] ?? 'Bónus disponível' }}</strong>
-                                </p>
+                                @foreach ($product['Bonuses'] as $bonus)
+                                    <span class="badge bg-dark text-light d-inline-block mb-1"
+                                        style="font-size: 0.75rem; max-width: 100%; white-space: normal; word-wrap: break-word; overflow-wrap: break-word;">
+                                        {{ $bonus['description'] }}
+                                        @if (!empty($bonus['notes']))
+                                            <br>— {{ $bonus['notes'] }}
+                                        @endif
+                                    </span><br>
+
+                                @endforeach
                             </div>
                         </div>
                     </div>
                 @endif
+
             </div>
 
 

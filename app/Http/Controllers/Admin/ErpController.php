@@ -49,10 +49,32 @@ class ErpController extends Controller
                     OR i.BarCode LIKE '%{$searchEscaped}%')";
         }
 
+        // Excluir packs (ItemIDs que terminam em -1, -2, -3, etc.)
+        $where[] = "i.ItemID NOT LIKE '%-[0-9]'";
+
+        // Excluir produtos descontinuados
+        $where[] = "i.Discontinued = 0";
+
         $whereClause = count($where) > 0 ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $startDate = $request->start_date ?? now()->subDays(30)->toDateString();
         $endDate = $request->end_date ?? now()->toDateString();
+
+        // Ordenação dinâmica (ProductName mapeado para n.Description)
+        $sortInput = $request->input('sort', 'ProductName'); // valor amigável da view
+        $directionInput = strtolower($request->input('direction', 'asc'));
+
+        $sort = match ($sortInput) {
+            'ProductName' => 'n.Description COLLATE Latin1_General_CI_AI',
+            'StockQty' => 'StockQty',
+            'CostPrice' => 'CostPrice',
+            'SalesLastPeriod' => 'SalesLastPeriod',
+            'SalesPreviousYearPeriod' => 'SalesPreviousYearPeriod',
+            default => 'i.ItemID',
+        };
+
+        $direction = $directionInput === 'desc' ? 'DESC' : 'ASC';
+
 
         $query = "
             SELECT 
@@ -93,7 +115,8 @@ class ErpController extends Controller
             FROM dbo.Item i
             LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID
             $whereClause
-            ORDER BY i.ItemID
+            ORDER BY {$sort} {$direction}
+
         ";
 
         try {
@@ -162,9 +185,19 @@ class ErpController extends Controller
                 $item['BrandID_Local'] = $brand?->id;
                 $item['SupplierName'] = $supplier?->name;
                 $item['BrandName'] = $brand?->name;
-                $item['HasBonus'] = $bonus !== null;
-                $item['BonusName'] = $bonus?->name;
-                $item['BonusDescription'] = $bonus?->description;
+                
+                // Buscar todos os bónus aplicáveis por marca ou fornecedor
+                $applicableBonuses = $bonuses->filter(function ($b) use ($brandId, $supplierId) {
+                    return $b->brand_id === $brandId || $b->supplier_id === $supplierId;
+                });
+
+                $item['HasBonus'] = $applicableBonuses->isNotEmpty();
+                $item['Bonuses'] = $applicableBonuses->values(); // <- remove chaves preservadas para JSON limpo
+
+                // Para compatibilidade com código antigo (se ainda usares estas colunas em algum lado):
+                $firstBonus = $applicableBonuses->first();
+                $item['BonusName'] = $firstBonus?->name;
+                $item['BonusDescription'] = $firstBonus?->description;
 
                 return $item;
             });
@@ -220,9 +253,15 @@ class ErpController extends Controller
                 ) AS SalesPreviousYearPeriod
             FROM dbo.Item i
             LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID
-            WHERE i.ItemID = '{$escaped}' OR i.BarCode = '{$escaped}'
+            WHERE i.ItemID = '{$escaped}' 
+            OR i.BarCode = '{$escaped}' 
+            OR i.ItemID IN (
+                SELECT ItemID 
+                FROM dbo.POSIdentity 
+                WHERE POSItemID = '{$escaped}'
+            )
         ";
-
+        
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->token,
             'Content-Type' => 'application/json',
@@ -249,12 +288,13 @@ class ErpController extends Controller
         $supplierId = $supplier?->id;
         $brandId = $brand?->id;
 
-        $bonus = $bonuses->first(fn ($b) => $b->brand_id === $brandId)
-            ?? $bonuses->first(fn ($b) => $b->supplier_id === $supplierId);
+        $applicableBonuses = $bonuses->filter(function ($b) use ($supplierId, $brandId) {
+            return $b->supplier_id === $supplierId || $b->brand_id === $brandId;
+        })->values(); // garantir array indexado sequencialmente
 
-        $product['HasBonus'] = $bonus !== null;
-        $product['BonusName'] = $bonus?->name;
-        $product['BonusDescription'] = $bonus?->description;
+        $product['Bonuses'] = $applicableBonuses;
+        $product['HasBonus'] = $applicableBonuses->isNotEmpty();
+
 
         // Format data
         try {
