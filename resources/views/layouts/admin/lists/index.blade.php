@@ -321,19 +321,18 @@
 </main>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
-        const contentId = el.getAttribute('data-popover-content');
-        const contentElement = document.getElementById(contentId);
-        const htmlContent = contentElement ? contentElement.innerHTML : '';
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function (el) {
+            const contentId = el.getAttribute('data-popover-content');
+            const contentElement = document.getElementById(contentId);
+            const htmlContent = contentElement ? contentElement.innerHTML : '';
 
-        new bootstrap.Popover(el, {
-            html: true,
-            content: htmlContent,
-            container: 'body',
+            new bootstrap.Popover(el, {
+                html: true,
+                content: htmlContent,
+                container: 'body',
+            });
         });
     });
-});
-
 </script>
 
 @endsection

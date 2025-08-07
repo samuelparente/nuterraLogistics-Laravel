@@ -478,7 +478,18 @@ class ReceivingController extends Controller
 
         $suppliers = Supplier::orderBy('name')->get();
         $brands = Brand::orderBy('name')->get();
-        return view('layouts.admin.receivings.singleScanner', compact('receiving'));
+        //return view('layouts.admin.receivings.singleScanner', compact('receiving'));
+        
+        // Pede ao ErpController para inserir o produto novo no ERP
+        try {
+          // Aqui o pedido para criar o produto
+
+          // Aqui o pedido para o inserir na receção com lote
+
+            return redirect()->back()->with('success', 'Produto criado e inserido.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+        }
 
     }
 
