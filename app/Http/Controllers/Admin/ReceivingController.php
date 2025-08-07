@@ -269,8 +269,9 @@ class ReceivingController extends Controller
 
             if (!$product) {
                 return redirect()
-                    ->route('receivings.items.single', $receiving->id)
-                    ->with('error', 'Produto não encontrado.');
+                    ->route('receivings.items.singleScanner', $receiving->id)
+                    ->with('errorCreate', 'Este produto não existe. Criar novo?')
+                    ->with('createProductUrl', route('receivings.items.createProduct', ['receiving' => $receiving->id]));
             }
         }
 
@@ -288,8 +289,10 @@ class ReceivingController extends Controller
             if (!$product) {
                 return redirect()
                     ->route('receivings.items.singleScanner', $receiving->id)
-                    ->with('errorCreate', 'Este produto não existe. Criar novo?');
+                    ->with('errorCreate', 'Este produto não existe. Criar novo?')
+                    ->with('createProductUrl', route('receivings.items.createProduct', ['receiving' => $receiving->id]));
             }
+
         }
 
         return view('layouts.admin.receivings.singleScanner', compact('product', 'receiving'));

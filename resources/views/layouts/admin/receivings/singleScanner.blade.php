@@ -65,7 +65,7 @@
                             <input type="date" name="expiry_date" class="form-control" required>
 
                             <div class="text-end mt-3">
-                                <button type="submit" class="btn btn-success">Adicionar</button>
+                                <button type="submit" class="btn btn-primary">Adicionar</button>
                             </div>
                         </form>
                     </div>
@@ -79,4 +79,10 @@
     </a>
   </div>
 </main>
+@if (session('createProductUrl'))
+    <script>
+        const createProductUrl = "{{ session('createProductUrl') }}";
+    </script>
+@endif
+
 @endsection

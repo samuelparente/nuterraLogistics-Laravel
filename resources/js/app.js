@@ -34,8 +34,8 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-        // erro produto nao existe e chama view para criar
-        if (window.flashErrorCreate) {
+    // erro produto nao existe e chama view para criar
+    if (window.flashErrorCreate) {
         Swal.fire({
             icon: 'error',
             title: 'Erro',

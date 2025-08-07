@@ -18,13 +18,13 @@
                     <i class="bi bi-upc-scan"></i> Entrada com Scanner
                 </a>
 
-                {{-- Criar e adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
+                <!-- {{-- Criar e adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
                 <a 
                     href="{{ route('receivings.items.createProduct', $receiving->id) }}"
                     class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
                     {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
                     <i class="bi bi-plus-circle"></i> Criar e Adicionar Produto Extra
-                </a>
+                </a> -->
 
                 {{-- Adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
                 <a 
