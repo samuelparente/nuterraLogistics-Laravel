@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin\AppSetting;
 use App\Models\Admin\Bonus;
 use App\Models\Admin\Supplier;
 use App\Models\Admin\Brand;
@@ -320,8 +321,35 @@ class OrderController extends Controller
             $order->files = $fileRecords;
             $order->save();
 
-            // Enviar email com ficheiros anexos
-            Mail::to('desenvolvimento@peixeverde.pt')
+            $settings = AppSetting::first();
+
+            if ($settings) {
+                config([
+                    'mail.mailers.smtp.host' => $settings->smtp_host,
+                    'mail.mailers.smtp.port' => $settings->smtp_port,
+                    'mail.mailers.smtp.username' => $settings->smtp_user,
+                    'mail.mailers.smtp.password' => $settings->smtp_password,
+                    'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
+
+                    'mail.from.address' => $settings->smtp_from_address,
+                    'mail.from.name' => $settings->smtp_from_name,
+                ]);
+            }
+
+                        
+            $to = collect(json_decode($settings->notification_to ?? '[]'))
+                ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                ->values()
+                ->toArray();
+
+            $cc = collect(json_decode($settings->notification_cc ?? '[]'))
+                ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                ->values()
+                ->toArray();
+
+            // Exemplo de envio
+            Mail::to($to)
+                ->cc($cc)
                 ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
 
             $msg = "Pedido enviado com sucesso!";
@@ -333,7 +361,7 @@ class OrderController extends Controller
             $order->status_id = 3;
             $order->save();
 
-            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.');
+            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.' .$e);
         }
     }
 
