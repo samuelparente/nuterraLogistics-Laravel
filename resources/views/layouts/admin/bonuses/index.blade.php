@@ -6,12 +6,21 @@
 
         <h1 class="h3 mb-3"><strong>BONIFICAÇÕES</strong> | Ver Todas</h1>
 
-        <!-- Botão Criar -->
+        <!-- Ações -->
         <div class="row mb-3">
             <div class="col-12 text-end">
-                <a href="{{ route('bonuses.bonus.create') }}" class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-plus-circle-fill me-1"></i> Criar Nova
-                </a>
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+                     {{-- novo --}}
+                    <a href="{{ route('bonuses.bonus.create') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-plus-circle-fill me-1"></i> Criar Nova
+                    </a>
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('backoffice.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -56,8 +65,8 @@
                                 </div>
                                 <div class="col-12 col-md-3 mt-3">
                                     <div class="d-flex flex-column flex-md-row justify-content-md-end gap-2">
-                                        <button type="submit" class="btn btn-primary w-100 w-md-auto">Filtrar</button>
-                                        <a href="{{ route('bonuses.index') }}" class="btn btn-outline-secondary w-100 w-md-auto">Limpar</a>
+                                        <button type="submit" class="btn btn-primary w-100 w-md-auto"><i class="bi bi-filter"></i> Filtrar</button>
+                                        <a href="{{ route('bonuses.index') }}" class="btn btn-outline-secondary w-100 w-md-auto"><i class="bi bi-arrow-clockwise"></i> Limpar</a>
                                     </div>
                                 </div>
                             </div>
@@ -96,7 +105,7 @@
                                             <div class="d-inline-flex align-items-center gap-2">
 
                                                 <!-- Ver Detalhes -->
-                                                <a href="#" class="btn btn-sm btn-outline-success btn-general"
+                                                <a href="#" class="btn btn-sm btn-outline-primary btn-general"
                                                 onclick="event.preventDefault();showInfoSwal('Detalhes da Bonificação', `{!! nl2br(e($bonus->description ?? '—')) !!}<br><br>{!! nl2br(e($bonus->notes ?? '—')) !!}`)"
                                                 title="Ver Detalhes">
                                                     <i class="bi bi-eye"></i>

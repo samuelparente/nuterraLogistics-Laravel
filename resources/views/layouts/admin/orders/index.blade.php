@@ -7,6 +7,21 @@
 
         <h1 class="h3 mb-3"><strong>PEDIDOS</strong> | Histórico</h1>
 
+        <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('orders.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- Breadcrumbs --}}
         @include('layouts.admin.partials.breadcrumbs', [
             'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
@@ -51,9 +66,9 @@
         {{-- Tabela de Pedidos --}}
         <div class="row">
             <div class="col-12">
-                <div class="card flex-fill">
+                <div class="card flex-fill table-responsive">
                     <div class="card-header"><h5 class="card-title mb-0">Histórico de Pedidos</h5></div>
-                    <table class="table table-condensed table-hover align-middle table-bordered table-responsive">
+                    <table class="table table-condensed table-hover align-middle table-bordered">
                         <thead>
                             <tr class="align-middle text-start">
                                 <th><i class="bi bi-hash table-icons" title="ID"></i></th>

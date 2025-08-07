@@ -26,19 +26,25 @@
                     <i class="bi bi-plus-circle"></i> Criar e Adicionar Produto Extra
                 </a> -->
 
-                {{-- Adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
+                <!-- {{-- Adicionar Produto Extra (ativo apenas se a receção estiver em curso) --}}
                 <a 
                     href="{{ route('receivings.items.single', $receiving->id) }}"
                     class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $receiving->status_id === 7 ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
                     {{ $receiving->status_id === 7 ? '' : 'disabled' }}>
                     <i class="bi bi-plus-circle"></i> Adicionar Produto Extra
-                </a>
+                </a> -->
 
-                {{-- Voltar ao Painel de Pendentes --}}
+                <!-- {{-- Voltar ao Painel de Pendentes --}}
                 <a 
                     href="{{ route('receivings.pending') }}"
                     class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Entradas em Curso
+                    <i class="bi bi-box"></i> Entradas em Curso
+                </a> -->
+                {{-- voltar --}}
+                <a 
+                    class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                    href="{{ route('receivings.pending') }}">
+                    <i class="bi bi-arrow-left"></i> Voltar
                 </a>
 
             </div>
@@ -185,19 +191,19 @@
 
                 {{-- Notas --}}
                 <div class="mb-3">
-                    <label for="notes" class="form-label">Observações (opcional)</label>
+                    <label for="notes" class="form-label">Notas</label>
                     <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
                 </div>
                     {{-- Ações --}}
                     <div class="d-flex gap-2">
                         {{-- Guardar (POST para store) --}}
                         <button type="submit" formaction="{{ route('receivings.store', [$order->id, $supplier->id]) }}" class="btn btn-secondary">
-                            Guardar Progresso
+                            <i class="bi bi-floppy"></i> Guardar
                         </button>
 
                         {{-- Finalizar (POST para finalize) --}}
                         <button type="submit" formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}" class="btn btn-primary">
-                            Finalizar Entrada
+                             <i class="bi bi-check2-circle"></i> Finalizar
                         </button>
                     </div>
                 </form>

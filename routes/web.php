@@ -194,6 +194,19 @@ Route::middleware('auth')->group(function () {
             Route::post('items/{item}/batches', [ReceivingController::class, 'storeBatch'])
                 ->name('items.batches.store');
 
+            // divergências de receções
+            Route::get('{receiving}/divergences/{brand}', [ReceivingController::class, 'showBrandDivergences'])
+                ->name('divergences.brand');
+
+            // Histórico de receções
+            Route::get('history', [ReceivingController::class, 'history'])
+                ->name('history');
+
+            // Detalhes de uma receção
+            Route::get('{receiving}/details', [ReceivingController::class, 'showDetails'])
+                ->name('details');
+
+
         });
 
     });

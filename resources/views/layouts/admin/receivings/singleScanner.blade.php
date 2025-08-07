@@ -14,9 +14,11 @@
                 <a 
                     href="{{ route('receivings.pending') }}"
                     class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> Entradas em Curso
+                    <i class="bi bi-box"></i> Entradas em Curso
                 </a>
-
+                <a class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary" href="{{ route('receivings.form', ['order' => $receiving->order_id, 'supplier' => $receiving->supplier_id]) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Voltar
+                </a>
             </div>
         </div>
     </div>
@@ -35,7 +37,7 @@
                         <input type="text" name="search" class="form-control" placeholder="SKU ou Código de Barras" value="{{ request('search') }}" autofocus>
 
                         <div class="text-end mt-3">
-                            <button type="submit" class="btn btn-primary">Pesquisar</button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Pesquisar</button>
                         </div>
                     </form>
                 </div>
@@ -45,7 +47,7 @@
         @if(isset($product))
             <div class="col-12 col-lg-6">
                 <div class="card">
-                    <div class="card-header"><h5 class="card-title mb-0">Adicionar Produto</h5></div>
+                    <div class="card-header"><h5 class="card-title mb-0">Adicionar</h5></div>
                     <div class="card-body">
                             <form method="POST" action="{{ route('receivings.items.addSingleScanner', $receiving->id) }}">
                             @csrf
@@ -55,7 +57,7 @@
                             <input type="hidden" name="brand_id" value="{{ $product['BrandID_Local'] }}">
                             <input type="hidden" name="product_name" value="{{ $product['ProductName'] }}">
                             <input type="hidden" name="bar_code" value="{{ $product['BarCode'] }}">
-                            <label>Quantidade Recebida</label>
+                            <label>Quantidade</label>
                             <input type="number" name="quantity" class="form-control" min="1" value="1" required>
 
                             <label class="mt-3">Lote</label>
@@ -65,7 +67,7 @@
                             <input type="date" name="expiry_date" class="form-control" required>
 
                             <div class="text-end mt-3">
-                                <button type="submit" class="btn btn-primary">Adicionar</button>
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-journal-plus"></i> Adicionar</button>
                             </div>
                         </form>
                     </div>
@@ -74,9 +76,6 @@
         @endif
     </div>
 
-    <a href="{{ route('receivings.form', ['order' => $receiving->order_id, 'supplier' => $receiving->supplier_id]) }}" class="btn btn-outline-secondary">
-        Voltar
-    </a>
   </div>
 </main>
 @if (session('createProductUrl'))

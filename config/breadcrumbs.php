@@ -171,4 +171,26 @@ return [
         ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
         ['label' => 'Entrada com Scanner', 'route' => null, 'icon' => 'bi-upc-scan'],
     ],
+
+    'receivings.history' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Histórico', 'route' => null, 'icon' => 'bi-clock-history'],
+    ],
+
+    'receivings.details' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Histórico', 'route' => 'receivings.history', 'icon' => 'bi-clock-history'],
+        ['label' => 'Detalhes', 'route' => null, 'icon' => 'bi-eye'],
+    ],
+
+    'receivings.divergences.brand' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Entrada de Mercadorias', 'route' => 'receivings.dashboard', 'icon' => 'bi-box-arrow-in-down'],
+        ['label' => 'Histórico', 'route' => 'receivings.history', 'icon' => 'bi-clock-history'],
+        ['label' => 'Divergências', 'route' => null, 'icon' => 'bi-exclamation-triangle'],
+    ],
+
+
 ];

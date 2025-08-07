@@ -135,7 +135,7 @@ class OrderController extends Controller
             if (!$openOrder) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Não existe pedido em aberto para adicionar produtos.',
+                    'message' => 'Não existe um pedido em aberto para adicionar produtos.',
                 ], 400);
             }
 
@@ -175,12 +175,12 @@ class OrderController extends Controller
             
             return response()->json([
                 'success' => true,
-                'message' => 'Produto(s) adicionados ao pedido com sucesso.',
+                'message' => 'Produto(s) adicionados com sucesso.',
             ]);
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Erro interno: ' . $e->getMessage(),
+                'message' => 'Ocorreu um erro inesperado. Contacte o suporte',
             ], 500);
         }
     }
@@ -196,7 +196,7 @@ class OrderController extends Controller
             $openOrder = Order::whereHas('status', fn($q) => $q->where('code', 'pending'))->first();
 
             if (!$openOrder) {
-                return redirect()->back()->with('error', 'Não existe pedido em aberto para adicionar produtos.');
+                return redirect()->back()->with('error', 'Não existe um pedido em aberto para adicionar produtos.');
             }
 
             $existingItem = OrderItem::where('order_id', $openOrder->id)
@@ -204,7 +204,7 @@ class OrderController extends Controller
                 ->first();
 
             if ($existingItem) {
-                return redirect()->back()->with('error', 'Este produto já foi adicionado ao pedido.');
+                return redirect()->back()->with('error', 'Este produto já foi adicionado.');
             }
 
             OrderItem::create([
@@ -217,9 +217,9 @@ class OrderController extends Controller
                 'brand_id' => $request->brand_id ?? null,
             ]);
 
-            return redirect()->route('lists.single')->with('success', 'Produto adicionado ao pedido com sucesso.');
+            return redirect()->route('lists.single')->with('success', 'Produto adicionado com sucesso.');
         } catch (\Throwable $e) {
-            return redirect()->back()->with('error', 'Erro ao adicionar produto: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte');
         }
     }
 
@@ -238,7 +238,7 @@ class OrderController extends Controller
     {
         $item->delete();
 
-        return back()->with('success', 'Item removido do pedido com sucesso.');
+        return back()->with('success', 'Produto removido com sucesso.');
     }
 
     public function destroy(Order $order)
@@ -254,7 +254,7 @@ class OrderController extends Controller
 
             return redirect()->route('orders.dashboard')->with('success', 'Pedido eliminado com sucesso.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Erro ao eliminar o pedido: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
         }
     }
 
@@ -264,7 +264,7 @@ class OrderController extends Controller
         try {
 
             if ($order->items()->count() === 0) {
-                return redirect()->back()->with('error', 'O pedido está vazio. Adicione itens antes de enviar.');
+                return redirect()->back()->with('error', 'O pedido está vazio. Adicione produtos antes de enviar.');
             }
 
             // Atualizar quantidades

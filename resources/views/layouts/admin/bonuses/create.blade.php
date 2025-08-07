@@ -6,6 +6,20 @@
 
         <h1 class="h3 mb-3"><strong>BONIFICAÇÕES</strong> | Criar Nova</h1>
 
+        <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('bonuses.index') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- breadcrumbs --}}
         @include('layouts.admin.partials.breadcrumbs', [
             'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
@@ -16,7 +30,7 @@
             <div class="row mb-3">
                 <div class="col-12 col-md-5">
                     <div class="card mb-4">
-                        <div class="card-header">Dados da Bonificação</div>
+                        <div class="card-header"><h5 class="card-title mb-0">Criar Registo</h5></div>
                         <div class="card-body">
 
                             <div class="mb-3">
@@ -54,8 +68,8 @@
                                 <textarea name="notes" class="form-control" rows="2">{{ old('notes') }}</textarea>
                             </div>
 
-                            <button type="submit" class="btn btn-primary">Gravar Registo</button>
-                            <a href="{{ route('bonuses.index') }}" class="btn btn-outline-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Gravar Registo</button>
+                            <a href="{{ route('bonuses.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Cancelar</a>
 
                         </div>
                     </div>

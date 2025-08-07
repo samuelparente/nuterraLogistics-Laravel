@@ -50,8 +50,26 @@ class Receiving extends Model
         return $this->belongsTo(User::class, 'received_by');
     }
 
-    public function status() // <--- ADICIONADO
+    public function status() 
     {
         return $this->belongsTo(Status::class);
     }
+
+    public function hasDivergences(): bool
+    {
+        foreach ($this->items as $item) {
+            // Produto extra (não faz parte da order original)
+            if (is_null($item->order_item_id)) {
+                return true;
+            }
+
+            // Produto com quantidade a mais ou a menos
+            if ($item->received_qty != $item->ordered_qty) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
