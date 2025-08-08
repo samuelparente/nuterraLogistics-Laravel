@@ -191,6 +191,10 @@ return [
         ['label' => 'Histórico', 'route' => 'receivings.history', 'icon' => 'bi-clock-history'],
         ['label' => 'Divergências', 'route' => null, 'icon' => 'bi-exclamation-triangle'],
     ],
+    'settings.edit' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Configurações', 'route' => 'settings.edit', 'icon' => 'bi-gear'],
+    ],
 
 
 ];

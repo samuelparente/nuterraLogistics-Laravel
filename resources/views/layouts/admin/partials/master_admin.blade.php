@@ -92,7 +92,16 @@
                             <i class="align-middle menu-icons-color" data-feather="percent"></i>
                             <span class="align-middle">Bonificações</span>
                         </a>
-                    </li>                   
+                    </li> 
+                    {{-- definiçoes --}}
+                    @hasanyrole('admin|super-admin')
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('settings.edit') }}">
+                            <i class="align-middle menu-icons-color" data-feather="settings"></i>
+                            <span class="align-middle">Configurações</span>
+                        </a>
+                    </li>
+                    @endhasanyrole                  
                 </ul>
             </div>
         </nav>

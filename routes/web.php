@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ReceivingController;
 use App\Http\Controllers\Admin\ListController;
 use App\Http\Controllers\Admin\ErpController;
+use App\Http\Controllers\Admin\AppSettingController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\Auth\RegisteredUserController;
@@ -13,8 +14,12 @@ use Illuminate\Support\Facades\Auth;
 
 
 // Rotas login
-Route::get('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/login', [AuthenticatedSessionController::class, 'create'])->name('login');
+Route::get('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/login', [AuthenticatedSessionController::class, 'create'])
+    ->name('login');
+    
 Route::post('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/login', [AuthenticatedSessionController::class, 'store']);
+
+
 
 // Backoffice 
 Route::middleware('auth')->group(function () {
@@ -246,6 +251,19 @@ Route::middleware('auth')->group(function () {
         });
 
     });
+
+    // Definições da app
+    Route::prefix('/backoffice/settings')->name('settings.')->group(function () {
+
+        Route::middleware(['role:super-admin|admin'])->group(function () {
+
+            Route::get('/', [AppSettingController::class, 'edit'])->name('edit');
+            Route::put('/', [AppSettingController::class, 'update'])->name('update');
+        
+        });
+
+    });
+
 
     // Logout
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
