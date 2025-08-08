@@ -16,20 +16,20 @@
                         @csrf
                         <button 
                             type="submit" 
-                            class="btn btn-sm me-2 action-buttons-header-mobile-inner 
+                            class="btn btn-sm me-2 action-buttons-header-mobile-inner
                                 {{ $openOrder ? 'btn-outline-secondary disabled' : 'btn-outline-secondary' }}" 
                             {{ $openOrder ? 'disabled' : '' }}
                         >
-                            <i class="bi bi-cart-plus"></i> Criar Pedido
+                            <i class="bi bi-file-plus"></i> Criar Pedido
                         </button>
                     </form>
 
                     {{-- Adicionar individual (desativado se NÃO existir pedido em aberto) --}}
                     <a 
-                        href="{{ route("lists.single")}}"
+                        href="{{ route('lists.single')}}"
                         class="btn btn-sm me-2 action-buttons-header-mobile-inner {{ $openOrder ? 'btn-outline-secondary' : 'btn-outline-secondary disabled' }}"
                         {{ $openOrder ? '' : 'disabled' }}>
-                        <i class="bi bi-cart-plus"></i> Adicionar Individual
+                        <i class="bi bi-upc-scan"></i> Adicionar Individual
                     </a>
 
                     {{-- Adicionar Selecionados (desativado se NÃO existir pedido em aberto) --}}
@@ -40,6 +40,13 @@
                         data-url="{{ route('orders.order.addItems') }}">
                         <i class="bi bi-cart-plus"></i> Adicionar Seleccionados
                     </button>
+
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('orders.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
 
                 </div>   
             </div>
@@ -98,8 +105,8 @@
 
                                 <div class="col-12 col-md-4 mt-3">
                                     <div class="d-flex flex-column flex-md-row justify-content-md-end gap-2">
-                                        <button type="submit" class="btn btn-primary w-100 w-md-auto">Filtrar</button>
-                                        <a href="" class="btn btn-outline-secondary w-100 w-md-auto">Limpar</a>
+                                        <button type="submit" class="btn btn-primary w-100 w-md-auto"><i class="bi bi-filter"></i> Filtrar</button>
+                                        <a href="" class="btn btn-outline-secondary w-100 w-md-auto"><i class="bi bi-arrow-clockwise"></i> Limpar</a>
                                     </div>
                                 </div>
                             </div>

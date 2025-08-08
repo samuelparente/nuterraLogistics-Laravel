@@ -5,6 +5,20 @@
   <div class="container-fluid p-0">
     <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Em Curso</h1>
 
+        <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('receivings.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
     @include('layouts.admin.partials.breadcrumbs', [
       'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
     ])

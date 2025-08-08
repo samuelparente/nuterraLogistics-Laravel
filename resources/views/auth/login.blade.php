@@ -63,28 +63,65 @@
             </div>
         @endif
 
+        @if (session('message'))
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                {{ session('message') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+        @endif
+
+
+        @php
+            // Garante que $errors existe, mesmo que não tenha sido injetado automaticamente
+            $errors = $errors ?? session()->get('errors') ?? new \Illuminate\Support\ViewErrorBag;
+        @endphp
+
         <form method="POST" action="{{ route('login') }}">
             @csrf
+
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input id="email" type="email" name="email" value="{{ old('email') }}" required autofocus class="form-control @error('email') is-invalid @enderror" placeholder="email@exemplo.com">
-                @error('email')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                <input
+                    id="email"
+                    type="email"
+                    name="email"
+                    value="{{ old('email') }}"
+                    required
+                    autofocus
+                    class="form-control {{ $errors->has('email') ? 'is-invalid' : '' }}"
+                    placeholder="email@exemplo.com"
+                >
+                @if ($errors->has('email'))
+                    <div class="invalid-feedback">
+                        {{ $errors->first('email') }}
+                    </div>
+                @endif
             </div>
+
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>
-                <input id="password" type="password" name="password" required class="form-control @error('password') is-invalid @enderror" placeholder="******">
-                @error('password')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
+                <input
+                    id="password"
+                    type="password"
+                    name="password"
+                    required
+                    class="form-control {{ $errors->has('password') ? 'is-invalid' : '' }}"
+                    placeholder="******"
+                >
+                @if ($errors->has('password'))
+                    <div class="invalid-feedback">
+                        {{ $errors->first('password') }}
+                    </div>
+                @endif
             </div>
+
             <div class="d-grid">
                 <button type="submit" class="btn btn-login px-4 py-2">
                     Entrar
                 </button>
             </div>
         </form>
+
     </div>
 </div>
 </body>

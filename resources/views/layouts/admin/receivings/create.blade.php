@@ -89,7 +89,7 @@
                             <input type="date" name="expiry_date" class="form-control" required>
 
                             <div class="text-end mt-3">
-                                <button type="submit" class="btn btn-success">Criar e Adicionar</button>
+                                <button type="submit" class="btn btn-primary">Criar e Adicionar</button>
                             </div>
                         </form>
                     </div>

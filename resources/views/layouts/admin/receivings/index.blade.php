@@ -7,6 +7,21 @@
 
         <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Pendentes</h1>
 
+         <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('receivings.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
         {{-- Breadcrumbs --}}
         @include('layouts.admin.partials.breadcrumbs', [
             'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
@@ -16,7 +31,7 @@
         <div class="row">
             <div class="col-12">
                 <div class="card flex-fill">
-                    <div class="card-header"><h5 class="card-title mb-0">Pedidos a fornecedor ativos</h5></div>
+                    <div class="card-header"><h5 class="card-title mb-0">Pendentes de Entrada</h5></div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-condensed table-hover align-middle table-bordered">
@@ -38,7 +53,7 @@
                                             <td>
                                                @if ($order->suppliers_without_receiving->count())
                                                     @foreach ($order->suppliers_without_receiving as $supplier)
-                                                            <span class="badge bg-primary-subtle text-dark mt-2 mb-2 d-flex justify-content-between align-items-center px-2 py-2">
+                                                            <span class="badge bg-primary-subtle text-dark mt-2 mb-2 d-flex justify-content-between align-items-center px-2 py-2 mt-1">
                                                                
                                                                 <span class="text-start" style="width: 90%;">
                                                                 {{ $supplier->name }}</span>
@@ -53,6 +68,7 @@
                                                                         </button>
                                                                     </form>
                                                                 </span>
+
                                                             </span>
                                                     @endforeach
                                                 @else

@@ -5,6 +5,20 @@
     <div class="container-fluid p-0">
         <h1 class="h3 mb-3"><strong>ADICIONAR PRODUTO</strong> | Individual</h1>
 
+        <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('lists.index') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+
         @include('layouts.admin.partials.breadcrumbs', [
             'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
         ])
@@ -19,22 +33,19 @@
                             <input type="text" name="search" class="form-control" placeholder="SKU ou Código de Barras" value="{{ request('search') }}" autofocus>
 
                             <div class="text-end mt-3">
-                                <button type="submit" class="btn btn-primary">Pesquisar</button>
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Pesquisar</button>
                             </div>
                         </form>
                     </div>
                 </div>
             </div>
 
-
-
-
         {{-- Produto encontrado --}}
         @if(isset($product))
                 {{-- Card: Adição de Produto --}}
                 <div class="col-12 col-lg-6 mb-3">
                     <div class="card">
-                        <div class="card-header"><h5 class="card-title mb-0">Adicionar ao Pedido</h5></div>
+                        <div class="card-header"><h5 class="card-title mb-0">Quantidade</h5></div>
                         <div class="card-body">
                             <form method="POST" action="{{ route('orders.order.addSingle') }}">
                                 @csrf
@@ -50,7 +61,7 @@
                                 </div>
                                 <div class="text-end mt-3">
                                     <button type="submit" class="btn btn-primary">
-                                        Adicionar ao Pedido
+                                        <i class="bi bi-cart-plus"></i> Adicionar
                                     </button>
                                 </div>
                             </form>
@@ -61,7 +72,7 @@
                 {{-- Card: Detalhes do Produto --}}
                 <div class="col-12 col-lg-4 mb-3">
                     <div class="card">
-                        <div class="card-header"><h5 class="card-title mb-0">Detalhes do Produto</h5></div>
+                        <div class="card-header"><h5 class="card-title mb-0">Detalhes</h5></div>
                         <div class="card-body">
                             <p><i class="bi bi-card-text me-1"></i> <strong>{{ $product['ProductName'] }}</strong></p>
                             <p><i class="bi bi-hash me-1"></i> <strong>{{ $product['ItemID'] }}</strong></p>
@@ -119,7 +130,7 @@
         
 
     </div>
-            <a href="{{ route('lists.index') }}" class="btn btn-outline-secondary" style="width:100px;">Cancelar</a>
+            <!-- <a href="{{ route('lists.index') }}" class="btn btn-outline-secondary" style="width:100px;">Cancelar</a> -->
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {

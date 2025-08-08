@@ -2764,7 +2764,7 @@ background-color: red;
 padding:2px;
 }
 .profile-card-header-gradient {
-  background: linear-gradient(135deg, #19c1b6 0%, #3ab795 100%);
+  background: linear-gradient(135deg, #181818 0%, #1d1d1d 100%);
   border-top-left-radius: 1rem;
   border-top-right-radius: 1rem;
   color: white; /* garante texto branco */

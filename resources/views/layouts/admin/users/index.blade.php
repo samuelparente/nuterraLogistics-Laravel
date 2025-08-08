@@ -6,16 +6,23 @@
 	<div class="container-fluid p-0">
 
 		<h1 class="h3 mb-3"><strong>UTILIZADORES</strong> | Ver Todos</h1>
-        <!-- Botões de ação-->
+
+        <!-- Ações -->
         <div class="row mb-3">
-            <div class="col-12 col-lg-12 text-end">
+            <div class="col-12 text-end">
                 <div class="mt-3 mb-3 action-buttons-header-mobile">
                     <a href="{{ route('users.user.create') }}" class="btn btn-sm btn-outline-secondary me-2 action-buttons-header-mobile-inner">
                         <i class="bi bi-plus-circle-fill me-1"></i> Criar Novo
                     </a>
-                </div>   
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('backoffice.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
             </div>
         </div>
+
         {{-- breadcrumbs --}}
         @include('layouts.admin.partials.breadcrumbs', [
 			'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
@@ -61,8 +68,8 @@
                                 </div>
 
                                 <div class="col-md-2 d-grid">
-                                    <button type="submit" class="btn btn-primary mb-1">Filtrar</button>
-                                    <a href="{{ route('users.index') }}" class="btn btn-outline-secondary">Limpar</a>
+                                    <button type="submit" class="btn btn-primary mb-1"><i class="bi bi-filter"></i> Filtrar</button>
+                                    <a href="{{ route('users.index') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise"></i> Limpar</a>
                                 </div>
                             </div>
                         </form>
@@ -78,79 +85,80 @@
                     <div class="card-header">
                         <h5 class="card-title mb-0">Utilizadores</h5>
                     </div>
-                    <table class="table table-condensed table-hover align-middle table-bordered">
-                        <thead>
-                            <tr class="align-middle">
-                                <th class="text-center"><i class="bi bi-person-circle table-icons" title="Avatar"></i></th>
-                                <th class="d-none d-xl-table-cell"><i class="bi bi-person-fill table-icons" title="Nome"></i></th>
-                                <th><i class="bi bi-envelope-fill table-icons" title="Email"></i></th>
-                                <th class="d-none d-xl-table-cell"><i class="bi bi-shield-lock-fill table-icons" title="Papel"></i></th>
-                                <th class="d-none d-xl-table-cell" title="Estado"><i class="bi bi-activity table-icons"></i></th>
-                                <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            @forelse($users as $user)
-                                <tr>
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center">
-                                            <img
-                                                src="{{ $user->avatar
-                                                    ? asset('storage/images/general/avatars/' . $user->avatar)
-                                                    : asset('images/general/avatars/avatar_default.png') }}"
-                                                alt="Avatar"
-                                                class="avatar_profile rounded-circle"
-                                                style="width: 40px; height: 40px; object-fit: cover;">
-                                        </div>
-                                    </td>
-
-                                    <td class="d-none d-xl-table-cell">{{ $user->name }}</td>
-                                    <td>{{ $user->email }}</td>
-                                    <td class="d-none d-xl-table-cell">
-                                        @foreach ($user->roleLabels() as $roleLabel)
-                                            <span class="badge bg-info">{{ $roleLabel }}</span>
-                                        @endforeach
-                                    </td>
-                                    <td class="d-none d-xl-table-cell">
-                                        @if($user->status)
-                                            <span class="badge bg-{{ $user->status->color ?? 'secondary' }}">
-                                                {{ $user->status->label_pt }}
-                                            </span>
-                                        @else
-                                            <span class="badge bg-light text-muted">Sem estado</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="d-inline-flex align-items-center gap-2">
-                                            <!-- Editar -->
-                                            <a href="{{ route('users.user.edit', $user->id) }}" class="btn btn-sm btn-outline-warning btn-general" title="Editar">
-                                                <i class="bi bi-pencil"></i>
-                                            </a>
-
-                                            <!-- Eliminar -->
-                                            <a href="#" onclick="confirmDelete({{ $user->id }})" class="btn btn-sm btn-outline-danger btn-general" title="Eliminar">
-                                                <i class="bi bi-trash"></i>
-                                            </a>
-
-                                            <!-- Formulário de Eliminação -->
-                                            <form id="delete-form-{{ $user->id }}" 
-                                                action="{{ route('users.user.destroy', $user->id) }}" 
-                                                method="POST" style="display: none;">
-                                                @csrf
-                                                @method('DELETE')
-                                            </form>
-                                        </div>
-                                    </td>
+                    <div class="card-body table-responsive"> <!-- SCROLL MOBILE -->
+                        <table class="table table-condensed table-hover align-middle table-bordered">
+                            <thead>
+                                <tr class="align-middle">
+                                    <th class="text-center"><i class="bi bi-person-circle table-icons" title="Avatar"></i></th>
+                                    <th class="d-none d-xl-table-cell"><i class="bi bi-person-fill table-icons" title="Nome"></i></th>
+                                    <th><i class="bi bi-envelope-fill table-icons" title="Email"></i></th>
+                                    <th class="d-none d-xl-table-cell"><i class="bi bi-shield-lock-fill table-icons" title="Papel"></i></th>
+                                    <th class="d-none d-xl-table-cell" title="Estado"><i class="bi bi-activity table-icons"></i></th>
+                                    <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
                                 </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="6" class="text-center">Nenhum utilizador encontrado.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
+                            </thead>
 
+                            <tbody>
+                                @forelse($users as $user)
+                                    <tr>
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center">
+                                                <img
+                                                    src="{{ $user->avatar
+                                                        ? asset('storage/images/general/avatars/' . $user->avatar)
+                                                        : asset('images/general/avatars/avatar_default.png') }}"
+                                                    alt="Avatar"
+                                                    class="avatar_profile rounded-circle"
+                                                    style="width: 40px; height: 40px; object-fit: cover;">
+                                            </div>
+                                        </td>
+
+                                        <td class="d-none d-xl-table-cell">{{ $user->name }}</td>
+                                        <td>{{ $user->email }}</td>
+                                        <td class="d-none d-xl-table-cell">
+                                            @foreach ($user->roleLabels() as $roleLabel)
+                                                <span class="badge bg-info">{{ $roleLabel }}</span>
+                                            @endforeach
+                                        </td>
+                                        <td class="d-none d-xl-table-cell">
+                                            @if($user->status)
+                                                <span class="badge bg-{{ $user->status->color ?? 'secondary' }}">
+                                                    {{ $user->status->label_pt }}
+                                                </span>
+                                            @else
+                                                <span class="badge bg-light text-muted">Sem estado</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="d-inline-flex align-items-center gap-2">
+                                                <!-- Editar -->
+                                                <a href="{{ route('users.user.edit', $user->id) }}" class="btn btn-sm btn-outline-warning btn-general" title="Editar">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+
+                                                <!-- Eliminar -->
+                                                <a href="#" onclick="confirmDelete({{ $user->id }})" class="btn btn-sm btn-outline-danger btn-general" title="Eliminar">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+
+                                                <!-- Formulário de Eliminação -->
+                                                <form id="delete-form-{{ $user->id }}" 
+                                                    action="{{ route('users.user.destroy', $user->id) }}" 
+                                                    method="POST" style="display: none;">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center">Nenhum utilizador encontrado.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

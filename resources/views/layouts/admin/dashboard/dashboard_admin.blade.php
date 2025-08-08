@@ -68,6 +68,20 @@
                 </div>
             </div>
 
+            <!-- Configurações -->
+             @hasanyrole('admin|super-admin')
+                <div class="col-12 col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column justify-content-center text-center">
+                            <div class="mb-3 text-secondary">
+                                <i data-feather="settings" class="taxonomy-icons" style="width:48px; height:48px;"></i>
+                                <h5 class="card-title mt-2 mb-1">Configurações</h5>
+                            </div>
+                            <a href="{{ route('settings.edit') }}" class="btn btn-sm btn-outline-secondary col-6 mx-auto">Aceder</a>
+                        </div>
+                    </div>
+                </div>
+            @endhasanyrole
         </div>
 
     </div>

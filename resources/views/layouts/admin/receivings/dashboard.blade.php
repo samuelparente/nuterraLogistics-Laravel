@@ -6,6 +6,22 @@
     <div class="container-fluid p-0">
 
         <h1 class="h3 mb-3"><strong>ENTRADA DE MERCADORIAS</strong> | Visão Geral</h1>
+
+         <!-- Ações -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('backoffice.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
+            </div>
+        </div>
+        
         {{-- breadcrumbs --}}
         @include('layouts.admin.partials.breadcrumbs', [
 			'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
@@ -49,7 +65,7 @@
             </div>
 
             <!-- divergências -->
-            <div class="col-12 col-md-4 mb-4">
+            <!-- <div class="col-12 col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
                         <div class="mb-3 text-warning">
@@ -59,17 +75,17 @@
                         <a href="{{ route('lists.index') }}" class="btn btn-sm btn-outline-warning col-6 mx-auto">Aceder</a>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Histórico -->
             <div class="col-12 col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
-                        <div class="mb-3 text-primary">
+                        <div class="mb-3 text-warning">
                             <i data-feather="list" class="taxonomy-icons" style="width:48px; height:48px;"></i>
                             <h5 class="card-title mt-2 mb-1">Histórico</h5>
                         </div>
-                        <a href="{{ route('orders.index') }}" class="btn btn-sm btn-outline-primary col-6 mx-auto">Aceder</a>
+                        <a href="{{ route('receivings.history') }}" class="btn btn-sm btn-outline-warning col-6 mx-auto">Aceder</a>
                     </div>
                 </div>
             </div>

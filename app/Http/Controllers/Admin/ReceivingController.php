@@ -245,8 +245,21 @@ class ReceivingController extends Controller
                     'notes' => $validated['notes'] ?? null,
                     'received_at' => now(),
                     'received_by' => auth()->id(),
-                    'status_id' => 5, // finalizado/arquivado
+                    'status_id' => 5, // finalizado/arquivado receining individual
                 ]);
+
+                // Verifica se todos os receivings da mesma order estão finalizados e marca essa order como finalizada
+                $allFinalized = Receiving::where('order_id', $receiving->order_id)
+                    ->whereNull('deleted_at') // ignora os eliminados
+                    ->whereNull('received_at') // ainda não finalizados
+                    ->doesntExist();
+
+                if ($allFinalized) {
+                    Order::where('id', $receiving->order_id)
+                        ->update(['status_id' => 5]); // arquivado
+                }
+
+
             });
 
             return redirect()
@@ -269,8 +282,9 @@ class ReceivingController extends Controller
 
             if (!$product) {
                 return redirect()
-                    ->route('receivings.items.single', $receiving->id)
-                    ->with('error', 'Produto não encontrado.');
+                    ->route('receivings.items.singleScanner', $receiving->id)
+                    ->with('errorCreate', 'Este produto não existe. Criar novo?')
+                    ->with('createProductUrl', route('receivings.items.createProduct', ['receiving' => $receiving->id]));
             }
         }
 
@@ -288,8 +302,10 @@ class ReceivingController extends Controller
             if (!$product) {
                 return redirect()
                     ->route('receivings.items.singleScanner', $receiving->id)
-                    ->with('errorCreate', 'Este produto não existe. Criar novo?');
+                    ->with('errorCreate', 'Este produto não existe. Criar novo?')
+                    ->with('createProductUrl', route('receivings.items.createProduct', ['receiving' => $receiving->id]));
             }
+
         }
 
         return view('layouts.admin.receivings.singleScanner', compact('product', 'receiving'));
@@ -473,7 +489,7 @@ class ReceivingController extends Controller
 
     }
 
-     public function createAddProduct(Request $request, Receiving $receiving, ErpController $erpController)
+    public function createAddProduct(Request $request, Receiving $receiving, ErpController $erpController)
     {
 
         $suppliers = Supplier::orderBy('name')->get();
@@ -492,5 +508,45 @@ class ReceivingController extends Controller
         }
 
     }
+
+    public function history()
+    {
+        $receivings = Receiving::with(['supplier', 'items.brand'])
+            ->whereNotNull('received_at')
+            ->orderByDesc('received_at')
+            ->paginate(paginationPerPage());
+
+        return view('layouts.admin.receivings.history', compact('receivings'));
+    }
+
+    public function showBrandDivergences(Receiving $receiving, int $brandId)
+    {
+        // Carrega os itens desta marca com divergências
+        $items = $receiving->items()
+            ->where('brand_id', $brandId)
+            ->get()
+            ->filter(function ($item) {
+                return is_null($item->order_item_id) || $item->received_qty != $item->ordered_qty;
+            });
+
+        $brand = $items->first()?->brand;
+        $supplier = $receiving->supplier;
+
+        return view('layouts.admin.receivings.divergences', [
+            'receiving' => $receiving,
+            'divergentItems' => $items,
+            'brand' => $brand,
+            'supplier' => $supplier,
+        ]);
+    }
+
+    public function showDetails(Receiving $receiving)
+    {
+        $items = $receiving->items()->with('batches')->get();
+
+        return view('layouts.admin.receivings.details', compact('receiving', 'items'));
+    }
+
+
 
 }

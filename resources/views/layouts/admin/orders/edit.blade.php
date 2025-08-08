@@ -8,16 +8,25 @@
         <!-- Ações -->
         <div class="row mb-3">
             <div class="col-12 text-end">
-                <a href="{{ route('lists.index') }}" class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
-                    <i class="bi bi-cart-plus"></i> Listagens
-                </a>
-                <a class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-danger" href="#" onclick="confirmDelete({{ $order->id }})" title="Eliminar Pedido">
-                    <i class="bi bi-trash"></i> Eliminar Pedido
-                </a>
-                <form id="delete-form-{{ $order->id }}" action="{{ route('orders.order.destroy', $order->id) }}" method="POST" style="display: none;">
-                    @csrf
-                    @method('DELETE')
-                </form>
+                <div class="mt-3 mb-3 action-buttons-header-mobile">
+
+                    <a href="{{ route('lists.index') }}" class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary">
+                        <i class="bi bi-cart-plus"></i> Listagens
+                    </a>
+                    <a class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-danger" href="#" onclick="confirmDelete({{ $order->id }})" title="Eliminar Pedido">
+                        <i class="bi bi-trash"></i> Eliminar Pedido
+                    </a>
+                    <form id="delete-form-{{ $order->id }}" action="{{ route('orders.order.destroy', $order->id) }}" method="POST" style="display: none;">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    {{-- voltar --}}
+                    <a 
+                        class="btn btn-sm me-2 action-buttons-header-mobile-inner btn-outline-secondary"
+                        href="{{ route('orders.dashboard') }}">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </a>
+                </div>
             </div>
         </div>
 
@@ -29,7 +38,7 @@
         <!-- Tabela de Itens do Pedido -->
         
             <div class="card">
-                <div class="card-header"><h5 class="card-title mb-0">Itens no Pedido</h5></div>
+                <div class="card-header"><h5 class="card-title mb-0">Produtos</h5></div>
                 <div class="card-body table-responsive">
                     <table class="table table-condensed table-hover align-middle table-bordered">
                         <thead>
@@ -129,7 +138,7 @@
                 @method('PATCH')
 
                 <div class="text-start mt-3">
-                    <button type="submit" class="btn btn-primary">Enviar Pedido</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send-plus"></i> Enviar</button>
                 </div>
             </form>
     </div>
