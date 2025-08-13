@@ -30,6 +30,7 @@ auth.json
 /public/hot
 /public/build
 /public/.htaccess
+/public/.web.config
 
 # Outros
 *.bat
