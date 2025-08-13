@@ -36,3 +36,8 @@ auth.json
 *.sh
 .bat
 .sh
+
+*.mdf
+*.ldf
+App_Data/*.mdf
+App_Data/*.ldf
