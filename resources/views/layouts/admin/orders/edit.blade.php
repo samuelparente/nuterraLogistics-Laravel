@@ -105,6 +105,7 @@
                                             value="{{ $item->quantity }}" 
                                             class="form-control form-control-sm text-end d-block ms-auto" 
                                             style="width: 80px;" 
+                                            form="order-update-form" 
                                             min="1">
                                     </td>
 
@@ -133,7 +134,7 @@
                     </table>
                 </div>
             </div>
-            <form method="POST" action="{{ route('orders.order.update', $order->id) }}">
+            <form method="POST" id="order-update-form" action="{{ route('orders.order.update', $order->id) }}">
                 @csrf
                 @method('PATCH')
 
