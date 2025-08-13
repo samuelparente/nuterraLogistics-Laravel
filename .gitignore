@@ -37,6 +37,7 @@ auth.json
 *.sh
 .bat
 .sh
+.sql
 
 *.mdf
 *.ldf
