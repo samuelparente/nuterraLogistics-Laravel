@@ -268,11 +268,18 @@ class OrderController extends Controller
                 return redirect()->back()->with('error', 'O pedido está vazio. Adicione produtos antes de enviar.');
             }
 
-            // Atualizar quantidades
-            if ($request->has('quantities')) {
-                foreach ($request->input('quantities') as $itemId => $qty) {
-                    $order->items()->where('id', $itemId)->update(['quantity' => $qty]);
-                }
+            // Validação
+            $validated = $request->validate([
+                'quantities' => ['array'],
+                'quantities.*' => ['required','integer','min:1'],
+            ]);
+
+            // Atualizar quantidades (só dos items deste pedido)
+            foreach ($validated['quantities'] ?? [] as $itemId => $qty) {
+                $order->items()
+                    ->where('order_id', $order->id)
+                    ->where('id', $itemId)
+                    ->update(['quantity' => (int) $qty]);
             }
 
             // Atualizar status para "Ativo"
