@@ -170,7 +170,7 @@ class OrderController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'Este produto já existe no pedido actual.',
-                ], 200); // ou 409 se quiseres sinalizar conflito
+                ], 200); 
             }
 
             
@@ -181,7 +181,7 @@ class OrderController extends Controller
         } catch (\Throwable $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Ocorreu um erro inesperado. Contacte o suporte',
+                'message' => 'Ocorreu um erro inesperado. Contacte o suporte' .$e,
             ], 500);
         }
     }
@@ -192,6 +192,7 @@ class OrderController extends Controller
             $request->validate([
                 'item_sku' => 'required|string',
                 'quantity' => 'required|integer|min:1',
+                'product_name'    => 'required','string','max:255',
             ]);
 
             $openOrder = Order::whereHas('status', fn($q) => $q->where('code', 'pending'))->first();
@@ -220,7 +221,7 @@ class OrderController extends Controller
 
             return redirect()->route('lists.single')->with('success', 'Produto adicionado com sucesso.');
         } catch (\Throwable $e) {
-            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte');
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte' . $e);
         }
     }
 

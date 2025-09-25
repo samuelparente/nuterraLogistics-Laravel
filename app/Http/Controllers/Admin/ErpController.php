@@ -209,6 +209,11 @@ class ErpController extends Controller
 
     public function getProductBySkuOrBarcode(string $value, array $filters = [])
     {
+
+        // TaxableGroupID =1 Iva a 23 Taxa normal
+        // TaxableGroupID = 2 Iva taxa intermédia 13%
+        // TaxableGroupID= 3 Iva reduzido 6%
+
         $value = trim($value);
         $escaped = str_replace("'", "''", $value);
 
@@ -224,6 +229,7 @@ class ErpController extends Controller
                 i.LastOutgoingDate,
                 i.SupplierOrderQty,
                 i.PhysicalQty,
+                i.TaxableGroupID,
                 n.Description AS ProductName,
                 (
                     SELECT TOP 1 UnitPrice
@@ -275,6 +281,8 @@ class ErpController extends Controller
 
         $product = $response['data'][0];
 
+       
+
         $supplier = Supplier::where('erp_id', $product['SupplierID'])->first();
         $brand = Brand::where('erp_id', $product['FamilyID'])->first();
 
@@ -319,10 +327,141 @@ class ErpController extends Controller
         $neededForNext30Days = ceil($averageDaily * 30);
         $product['SuggestedQty'] = max($neededForNext30Days - $stock, 0);
 
+        $productId =  $product['ItemID'];
+        $taxRate = $this->getProductTaxRate($productId);
+        $product['taxRate'] = $taxRate;
+        
+        //$result = $this->createProduct($product);
+
+        //dd($result);
+
         return $product;
     }
 
+    // Insere novo produto no erp
+    public function erpCreateProduct(array $product): array
+    {
+        $url = 'http://nuterra.dyndns.biz:45248/testes/api/Artigos';
 
+        
+        // Montar payload com base no $product
+        $payload = [
+            "ItemID"           => $product['ItemID'] ?? '',
+            "ItemType"         => $product['ItemType'] ?? 0,
+            "BarCode"          => $product['BarCode'] ?? '',
+            "Description"      => $product['Description'] ?? '',
+            "ShortDescription" => $product['ShortDescription'] ?? '',
+            "BarCodeType"      => $product['BarCodeType'] ?? 0,
+            "UnitOfSaleID"     => $product['UnitOfSaleID'] ?? 'UNI',
+            "TaxableGroupID"   => $product['TaxableGroupID'] ?? 1,
+            "pc"               => $product['pc']     ?? 0,
+            "ReorderPoint" => $product['ReorderPoint'] ?? 0,
+            "RestockLevel" => $product['RestockLevel'] ?? 0,
+            "SupplierID"   => $product['SupplierID'] ?? 0,
+            "FamilyID"     => $product['FamilyID'] ?? 0,
+
+            "ItemFirstGroupID"  => $product['ItemFirstGroupID']  ?? 0,
+            "ItemSecondGroupID" => $product['ItemSecondGroupID'] ?? 0,
+            "ItemThirdGroupID"  => $product['ItemThirdGroupID']  ?? 0,
+
+            "Descontinuado" => $product['Descontinuado'] ?? false,
+            "NaoAgrupar"    => $product['NaoAgrupar'] ?? false,
+            "cores"          => $product['cores'] ?? [],
+            "tamanhos"       => $product['tamanhos'] ?? [],
+            "ChavePropriedade1" => 'LOTE',
+        ];
+
+        
+        // Enviar request
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Accept'       => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(30)
+                ->asJson()
+                ->post($url, $payload);
+
+            $json = null;
+            try {
+                $json = $response->json();
+            } catch (\Throwable $ignore) {}
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'status'  => $response->status(),
+                    'data'    => $json,
+                    'payload' => $payload, // para debug
+                ];
+            }
+
+            return [
+                'success' => false,
+                'status'  => $response->status(),
+                'error'   => $json['message'] ?? (string)$response->body(),
+                'payload' => $payload,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'status'  => 0,
+                'error'   => 'Erro: ' . $e->getMessage(),
+                'payload' => $payload,
+            ];
+        }
+    }
+
+    // Insere documento de compra no erp
+    public function erpInsertDocument(array $product): array{
+
+        $url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
+
+    }
+
+    // Ler a taxa de iva associada ao produto
+    public function getProductTaxRate(string $value, string $taxGroup = 'IVA'): ?float
+    {
+        $value   = trim($value);
+        $escaped = str_replace("'", "''", $value);
+        $taxGrp  = str_replace("'", "''", $taxGroup);
+
+        $query = "
+            SELECT TOP 1
+                CAST(tt.TaxRate AS FLOAT) AS TaxRate
+            FROM dbo.Item i
+            JOIN dbo.TaxableGroupRules tgr
+                ON tgr.TaxableGroupID = i.TaxableGroupID
+            JOIN dbo.TaxTable tt
+                ON tt.TaxGroupID   = tgr.TaxGroupID
+            AND tt.TaxSequenceID = tgr.TaxSequenceID
+            WHERE (i.ItemID  = '{$escaped}'
+                OR i.BarCode = '{$escaped}'
+                OR i.ItemID IN (
+                    SELECT pi.ItemID
+                    FROM dbo.POSIdentity pi
+                    WHERE pi.POSItemID = '{$escaped}'
+                ))
+            AND tgr.TaxGroupID = '{$taxGrp}'
+            AND tt.CountryID   = 'PRT'
+            AND tt.TaxRegionID = 'CON'
+            AND (tt.TaxExpirationDate IS NULL OR tt.TaxExpirationDate >= GETDATE())
+            ORDER BY tt.TaxSequenceID
+        ";
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type'  => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($this->endpoint, ['query' => $query]);
+
+        if (!$response->successful() || empty($response['data'][0]['TaxRate'])) {
+            return null;
+        }
+
+        return (float) $response['data'][0]['TaxRate'];
+    }
 
     // não usados. metodos para ir buscar diretamente sempre as marcas e fornecedores
     // public function getErpSuppliers()

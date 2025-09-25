@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Admin\ErpController;
 use App\Models\Admin\Supplier;
 use App\Models\Admin\Brand;
 use App\Models\Admin\Order;
@@ -262,6 +263,8 @@ class ReceivingController extends Controller
 
             });
 
+            // Aqui fica a chamada de inserir o documento no ERP
+
             return redirect()
                 ->route('receivings.pending')
                 ->with('success', 'Entrada finalizada e arquivada com sucesso.');
@@ -383,7 +386,9 @@ class ReceivingController extends Controller
                 // Atualiza a quantidade total recebida
                 $totalQty = $item->batches()->sum('quantity');
                 $item->update(['received_qty' => $totalQty]);
-            } else {
+            } 
+            else {
+
                 // Cria novo item e primeiro lote
                 $item = ReceivingItem::create([
                     'receiving_id'      => $receiving->id,
@@ -494,13 +499,55 @@ class ReceivingController extends Controller
 
         $suppliers = Supplier::orderBy('name')->get();
         $brands = Brand::orderBy('name')->get();
-        //return view('layouts.admin.receivings.singleScanner', compact('receiving'));
-        
-        // Pede ao ErpController para inserir o produto novo no ERP
+       
         try {
-          // Aqui o pedido para criar o produto
+        
+            // Pede ao ErpController para inserir o produto novo no ERP
+            // o id do fornecedor e marca que vem do form tem de ser convertido no erp_id dessas tabelas
+            // antes de enviar
+            //dd($request);
 
-          // Aqui o pedido para o inserir na receção com lote
+            // Montar payload
+            $product =[];
+            
+            // buscar erp_id correspondentes (ignora soft-deleted)
+            $supplierErpId = Supplier::whereKey($request['supplier_id'])->value('erp_id');
+            $brandErpId    = Brand::whereKey($request['brand_id'])->value('erp_id');
+
+            //dd($request);
+            $product['ItemID'] = $request['item_sku'];
+            $product['Description'] = $request['product_full_description'];
+            $product['ShortDescription'] = $request['product_description'];
+            $product['ItemType'] = 0;
+            $product['BarCode'] = $request['bar_code'];
+            $product['BarCodeType'] = 0;
+            $product['UnitOfSaleID'] = "UNI";
+            $product['TaxableGroupID'] = $request['TaxableGroupID'];
+            $product['pc'] = $request['pc'];
+            $product['SupplierID'] = $supplierErpId;
+            $product['FamilyID'] = $brandErpId;
+
+            try{
+                 $result = $erpController->erpCreateProduct($product);
+            } catch (\Throwable $e) {
+                return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.' . $e);
+            }
+
+            //O pedido para o inserir na receção com lote
+
+            $newRequest = new Request([
+                'item_sku'      => $request['item_sku'],
+                'quantity'      => $request['quantity'],
+                'product_name'  => $request['product_full_description'],
+                'batch_number'  => $request['batch_number'],
+                'expiry_date'   => $request['expiry_date'],
+                'supplier_id'   => $request['supplier_id'],
+                'brand_id'      => $request['brand_id'],    
+                'bar_code'      => $request['bar_code'],    
+                ]);
+
+            $this->addSingleScanner($newRequest, $receiving);
+
 
             return redirect()->back()->with('success', 'Produto criado e inserido.');
         } catch (\Throwable $e) {

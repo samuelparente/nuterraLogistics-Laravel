@@ -56,12 +56,26 @@
                             <label class="mt-3">Código de Barras</label>
                             <input type="text" name="bar_code" class="form-control" required>
 
-                            <label class="mt-3">Nome</label>
-                            <input type="text" name="product_name" class="form-control" required>
+                            <label class="mt-3">Descrição Curta</label>
+                            <input type="text" name="product_description" class="form-control" required>
+
+                            <label class="mt-3">Descrição Completa</label>
+                            <input type="text" name="product_full_description" class="form-control" required>
+
+                            <label class="mt-3">Preço de Custo</label>
+                            <input type="number" step="0.001" name="pc" class="form-control" required>
+
+                            <label for="taxable_group_id" class="form-label mt-3">Taxa de IVA</label>
+                            <select name="TaxableGroupID" id="taxable_group_id" class="form-select" required>
+                                <option value="" disabled selected>Selecione...</option>
+                                <option value="1">Taxa Normal - 23%</option>
+                                <option value="2">Taxa Intermédia - 13%</option>
+                                <option value="3">Taxa Reduzida - 6%</option>
+                            </select>
 
                             <label for="supplier_id" class="form-label mt-3">Fornecedor</label>
                             <select name="supplier_id" id="supplier_id" class="form-select">
-                                <option value="">Todos</option>
+                                <option value="" disabled selected>Selecione...</option>
                                 @foreach ($suppliers as $supplier)
                                     <option value="{{ $supplier['id'] }}">
                                         {{ $supplier['name'] }}
@@ -71,7 +85,7 @@
                         
                             <label for="brand_id" class="form-label mt-3">Marca</label>
                             <select name="brand_id" id="brand_id" class="form-select">
-                                <option value="">Todas</option>
+                                <option value="" disabled selected>Selecione...</option>
                                 @foreach ($brands as $brand)
                                     <option value="{{ $brand['id'] }}">
                                         {{ $brand['name'] }}
