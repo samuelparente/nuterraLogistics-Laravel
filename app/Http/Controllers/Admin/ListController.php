@@ -88,6 +88,8 @@ class ListController extends Controller
 
         }
 
+      
+
         return view('layouts.admin.lists.index', compact(
             'products', 'suppliers', 'brands', 'filters', 'startDate', 'endDate', 'sort', 'direction'
         ));
@@ -99,11 +101,9 @@ class ListController extends Controller
 
         if ($request->filled('search')) {
             $product = $erpController->getProductBySkuOrBarcode($request->search);
-
             if ($product) {
                 return view('layouts.admin.lists.single', compact('product'));
             } else {
-                // ⚠️ Aqui usamos redirect para garantir que a session persiste
                 return redirect()->route('lists.single')
                     ->with('error', 'Produto não encontrado.');
             }

@@ -27,40 +27,39 @@ class ReceivingController extends Controller
     }
 
     public function index()
-    {
-        $orders = Order::with(['items.supplier'])
-            ->whereHas('status', fn($q) => $q->where('code', 'active'))
-            ->whereHas('items', function ($query) {
-                $query->whereHas('supplier')
-                    ->whereRaw('NOT EXISTS (
-                        SELECT 1 FROM receivings
-                        WHERE receivings.order_id = order_items.order_id
-                        AND receivings.supplier_id = order_items.supplier_id
-                        AND receivings.received_at IS NULL
-                        AND receivings.deleted_at IS NULL
-                    )');
-            })
-            ->orderByDesc('created_at')
-            ->paginate(paginationPerPage());
+{
+    $orders = Order::with(['items.supplier'])
+        ->whereHas('status', fn($q) => $q->where('code', 'active'))
+        ->whereHas('items', function ($query) {
+            $query->whereHas('supplier')
+                ->whereRaw('NOT EXISTS (
+                    SELECT 1 FROM receivings
+                    WHERE receivings.order_id = order_items.order_id
+                      AND receivings.supplier_id = order_items.supplier_id
+                      AND receivings.deleted_at IS NULL
+                )');
+        })
+        ->orderByDesc('created_at')
+        ->paginate(paginationPerPage());
 
-        // Adiciona property customizada: suppliers_without_receiving
-        foreach ($orders as $order) {
-            $suppliers = $order->items
-                ->filter(fn($item) => $item->supplier)
-                ->pluck('supplier')
-                ->unique('id');
+    // suppliers_without_receiving: fornecedores que AINDA NÃO têm qualquer receção (aberta ou concluída)
+    foreach ($orders as $order) {
+        $suppliers = $order->items
+            ->filter(fn($item) => $item->supplier)
+            ->pluck('supplier')
+            ->unique('id');
 
-            $order->suppliers_without_receiving = $suppliers->filter(function ($supplier) use ($order) {
-                return !Receiving::where('order_id', $order->id)
-                    ->where('supplier_id', $supplier->id)
-                    ->whereNull('received_at')
-                    ->whereNull('deleted_at')
-                    ->exists();
-            });
-        }
-
-        return view('layouts.admin.receivings.index', compact('orders'));
+        $order->suppliers_without_receiving = $suppliers->filter(function ($supplier) use ($order) {
+            return !Receiving::where('order_id', $order->id)
+                ->where('supplier_id', $supplier->id)
+                ->whereNull('deleted_at')
+                ->exists();
+        });
     }
+
+    return view('layouts.admin.receivings.index', compact('orders'));
+}
+
 
 
 
@@ -264,6 +263,109 @@ class ReceivingController extends Controller
             });
 
             // Aqui fica a chamada de inserir o documento no ERP
+            try {
+                // Recarregar com relações necessárias
+                $receiving->load([
+                    'supplier',                // precisa do erp_id
+                    'items.batches',           // 1 linha por lote
+                    'items.orderItem',         // tentar obter preço
+                ]);
+
+                // Validar erp_id do fornecedor
+                $supplierErpId = $receiving->supplier?->erp_id;
+                if (!$supplierErpId) {
+                    throw new \Exception('Fornecedor sem ERP ID (erp_id). Associe o erp_id ao fornecedor antes de finalizar.');
+                }
+
+                // Configs/fallbacks
+                $transDocument = config('erp.docs.entry', 'FGR');               // sigla do doc de ENTRADA
+                $warehouseId   = config('erp.default_warehouse_id', 1);
+                $paymentId     = config('erp.default_payment_id');              // opcional
+                $tenderId      = config('erp.default_tender_id');               // opcional
+
+                // Montar linhas a partir dos lotes
+                $lines = [];
+                $erp = new ErpController();
+
+                foreach ($receiving->items as $item) {
+                    // SKU ERP = assumimos product_sku
+                    $itemId = $item->product_sku;
+
+                    // Tentar preço a partir do OrderItem (se existir esse campo). 
+                    $priceFromOrder = null;
+                    if ($item->relationLoaded('orderItem') && $item->orderItem) {
+                        // tenta várias colunas comuns
+                        $priceFromOrder = $item->orderItem->unit_price
+                            ?? $item->orderItem->price
+                            ?? $item->orderItem->cost_price
+                            ?? null;
+                    }
+
+                    foreach ($item->batches as $batch) {
+                        $qty = (float) $batch->quantity;
+
+                        // Determinar preço (fallback ao ERP se necessário)
+                        $price = $priceFromOrder;
+                        if ($price === null) {
+                            $p = $erp->getProductBySkuOrBarcode($itemId);
+                            $price = (float) ($p['CostPrice'] ?? 0);
+                        }
+
+                        // Normalizar data (YYYY-MM-DD)
+                        $validade = \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d');
+
+                        $lines[] = [
+                            'itemID'       => $itemId,
+                            'quantity'     => $qty,
+                            'price'        => (float) $price,
+                            'unitOfSaleID' => 'UNI',
+                            'propriedade1' => (string) $batch->batch_number,
+                            'validade1'    => $validade,
+                            'colorID'      => 0,
+                            'sizeID'       => 0,
+                        ];
+                    }
+                }
+
+                if (empty($lines)) {
+                    throw new \Exception('Nenhuma linha para enviar ao ERP (sem lotes válidos).');
+                }
+
+                // Payload final
+                $orderReceived = [
+                    'clientID'               => (int) $supplierErpId,         // <- Supplier ERP ID
+                    'wharehouseID'           => (int) $warehouseId,
+                    'transDocument'          => (string) $transDocument,
+                    'transactionTaxIncluded' => false,
+                    'comments'               => $receiving->notes ?? 'Entrada finalizada via plataforma NUTERRA | Logistics',
+                    'lines'                  => $lines,
+                ];
+
+                if ($paymentId) $orderReceived['paymentID'] = (int) $paymentId;
+                if ($tenderId)  $orderReceived['tenderID']  = (int) $tenderId;
+
+                // Enviar
+                $erpController = new ErpController();
+                $result = $erpController->erpInsertDocument($orderReceived);
+
+                if (!($result['success'] ?? false)) {
+                    // Opcional: podes fazer rollback lógico aqui se preferires
+                    throw new \Exception('ERP: ' . ($result['error'] ?? 'Falha a inserir documento.'));
+                }
+
+                // Se quiseres guardar no Receiving alguma referência do doc ERP (ex.: TransSerial/TransDocNumber):
+                // if (!empty($result['data']['TransSerial']) && !empty($result['data']['TransDocNumber'])) {
+                //     $receiving->update([
+                //         'erp_trans_serial'  => $result['data']['TransSerial'],
+                //         'erp_trans_document'=> $result['data']['TransDocument'] ?? $transDocument,
+                //         'erp_trans_number'  => $result['data']['TransDocNumber'],
+                //     ]);
+                // }
+
+            } catch (\Throwable $e) {
+                return back()->with('error', 'Falha ao criar documento no ERP: ' . $e->getMessage());
+            }
+
 
             return redirect()
                 ->route('receivings.pending')
@@ -322,6 +424,7 @@ class ReceivingController extends Controller
             'product_name'  => 'required|string',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
+            'is_new'        => 'nullable|boolean',
         ]);
 
         $exists = ReceivingItem::where('receiving_id', $receiving->id)
@@ -332,31 +435,44 @@ class ReceivingController extends Controller
             return redirect()->back()->with('error', 'Este produto já foi adicionado à receção.');
         }
 
-        DB::transaction(function () use ($request, $receiving) {
-            $item = ReceivingItem::create([
-                'receiving_id'      => $receiving->id,
-                'product_sku'       => $request->item_sku,
-                'product_name'      => $request->product_name,
-                'product_barcode'   => $request->bar_code ?? null,
-                'supplier_id'       => $request->supplier_id ?? null,
-                'brand_id'          => $request->brand_id ?? null,
-                'ordered_qty'       => 0,
-                'received_qty'      => $request->quantity,
-            ]);
+        try {
+            DB::transaction(function () use ($request, $receiving) {
+                $item = ReceivingItem::create([
+                    'receiving_id'    => $receiving->id,
+                    'product_sku'     => $request->item_sku,
+                    'product_name'    => $request->product_name,
+                    'product_barcode' => $request->bar_code ?? null,
+                    'supplier_id'     => $request->supplier_id ?? null,
+                    'brand_id'        => $request->brand_id ?? null,
+                    'ordered_qty'     => 0,
+                    'received_qty'    => $request->quantity,
+                    'is_new'          => (int) $request->input('is_new', 0),
+                ]);
 
-            $item->batches()->create([
-                'quantity'     => $request->quantity,
-                'batch_number' => $request->batch_number,
-                'expiry_date'  => $request->expiry_date,
-            ]);
-        });
+                $item->batches()->create([
+                    'quantity'     => $request->quantity,
+                    'batch_number' => $request->batch_number,
+                    'expiry_date'  => $request->expiry_date,
+                ]);
+            });
 
-        return redirect()
-            ->route('receivings.form', [
-                'order' => $receiving->order_id,
-                'supplier' => $receiving->supplier_id,
-            ])
-            ->with('success', 'Produto e lote adicionados com sucesso.');
+            return redirect()
+                ->route('receivings.form', [
+                    'order'    => $receiving->order_id,
+                    'supplier' => $receiving->supplier_id,
+                ])
+                ->with('success', 'Produto e lote adicionados com sucesso.');
+        } catch (\Throwable $e) {
+            // loga o erro para debug
+            \Log::error('Erro ao adicionar item na receção: '.$e->getMessage(), ['trace' => $e]);
+
+            return redirect()
+                ->route('receivings.form', [
+                    'order'    => $receiving->order_id,
+                    'supplier' => $receiving->supplier_id,
+                ])
+                ->with('error', 'Ocorreu um erro inesperado ao adicionar o produto. Contacte o suporte.');
+        }
     }
 
     public function addSingleScanner(Request $request, Receiving $receiving)
@@ -367,50 +483,61 @@ class ReceivingController extends Controller
             'product_name'  => 'required|string',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
+            'is_new'        => 'nullable|boolean', 
         ]);
 
-        DB::transaction(function () use ($request, $receiving) {
-            // Tenta encontrar o item já existente com mesmo SKU
-            $item = ReceivingItem::where('receiving_id', $receiving->id)
-                ->where('product_sku', $request->item_sku)
-                ->first();
+        try {
+            DB::transaction(function () use ($request, $receiving) {
+                // Tenta encontrar o item já existente com mesmo SKU
+                $item = ReceivingItem::where('receiving_id', $receiving->id)
+                    ->where('product_sku', $request->item_sku)
+                    ->first();
 
-            if ($item) {
-                // Se já existe, apenas adiciona novo lote e soma quantidade
-                $item->batches()->create([
-                    'quantity'     => $request->quantity,
-                    'batch_number' => $request->batch_number,
-                    'expiry_date'  => $request->expiry_date,
-                ]);
+                if ($item) {
+                    // Se já existe, apenas adiciona novo lote e soma quantidade
+                    $item->batches()->create([
+                        'quantity'     => $request->quantity,
+                        'batch_number' => $request->batch_number,
+                        'expiry_date'  => $request->expiry_date,
+                    ]);
 
-                // Atualiza a quantidade total recebida
-                $totalQty = $item->batches()->sum('quantity');
-                $item->update(['received_qty' => $totalQty]);
-            } 
-            else {
+                    // Atualiza a quantidade total recebida
+                    $totalQty = $item->batches()->sum('quantity');
+                    $item->update(['received_qty' => $totalQty]);
 
-                // Cria novo item e primeiro lote
-                $item = ReceivingItem::create([
-                    'receiving_id'      => $receiving->id,
-                    'product_sku'       => $request->item_sku,
-                    'product_name'      => $request->product_name,
-                    'product_barcode'   => $request->bar_code ?? null,
-                    'supplier_id'       => $request->supplier_id ?? null,
-                    'brand_id'          => $request->brand_id ?? null,
-                    'ordered_qty'       => 0,
-                    'received_qty'      => $request->quantity,
-                ]);
+                    // se este scan marcou como novo, mantém a flag a 1
+                    if ($request->boolean('is_new')) {
+                        $item->is_new = 1;
+                        $item->save();
+                    }
+                } else {
+                    // Cria novo item e primeiro lote
+                    $item = ReceivingItem::create([
+                        'receiving_id'    => $receiving->id,
+                        'product_sku'     => $request->item_sku,
+                        'product_name'    => $request->product_name,
+                        'product_barcode' => $request->bar_code ?? null,
+                        'supplier_id'     => $request->supplier_id ?? null,
+                        'brand_id'        => $request->brand_id ?? null,
+                        'ordered_qty'     => 0,
+                        'received_qty'    => $request->quantity,
+                        'is_new'          => (int) $request->input('is_new', 0), 
+                    ]);
 
-                $item->batches()->create([
-                    'quantity'     => $request->quantity,
-                    'batch_number' => $request->batch_number,
-                    'expiry_date'  => $request->expiry_date,
-                ]);
-            }
-        });
+                    $item->batches()->create([
+                        'quantity'     => $request->quantity,
+                        'batch_number' => $request->batch_number,
+                        'expiry_date'  => $request->expiry_date,
+                    ]);
+                }
+            });
 
-        return redirect()->back()->with('success', 'Item inserido com sucesso.');
+            return redirect()->back()->with('success', 'Item inserido com sucesso.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+        }
     }
+
 
 
     public function destroyItem(ReceivingItem $item)
@@ -481,7 +608,7 @@ class ReceivingController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Throwable $e) {
-            return response()->json(['success' => false, 'message' => 'Erro ao guardar o lote.' . $e], 500);
+            return response()->json(['success' => false, 'message' => 'Erro ao guardar o lote.' . $e]);
         }
     }
 
@@ -544,6 +671,7 @@ class ReceivingController extends Controller
                 'supplier_id'   => $request['supplier_id'],
                 'brand_id'      => $request['brand_id'],    
                 'bar_code'      => $request['bar_code'],    
+                'is_new'        => 1,
                 ]);
 
             $this->addSingleScanner($newRequest, $receiving);

@@ -86,6 +86,7 @@ class ErpController extends Controller
                 i.SupplierOrderQty,
                 i.PhysicalQty,
                 n.Description AS ProductName,
+                n.ShortDescription AS ShortDescription,
                 (
                     SELECT TOP 1 UnitPrice
                     FROM dbo.ItemSellingPrices
@@ -113,7 +114,7 @@ class ErpController extends Controller
                             DATEADD(YEAR, -1, '{$endDate}')
                 ) AS SalesPreviousYearPeriod
             FROM dbo.Item i
-            LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID
+            LEFT JOIN dbo.ItemNames n ON i.ItemID = n.ItemID 
             $whereClause
             ORDER BY {$sort} {$direction}
 
@@ -128,8 +129,12 @@ class ErpController extends Controller
             ->post($this->endpoint, ['query' => $query]);
 
             if (!$response->successful() || !isset($response['data'])) {
+
+                
                 return collect();
             }
+
+            dd($response['data']);
 
             $daysInPeriod = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
 
@@ -198,6 +203,7 @@ class ErpController extends Controller
                 $firstBonus = $applicableBonuses->first();
                 $item['BonusName'] = $firstBonus?->name;
                 $item['BonusDescription'] = $firstBonus?->description;
+
 
                 return $item;
             });
@@ -412,12 +418,147 @@ class ErpController extends Controller
         }
     }
 
-    // Insere documento de compra no erp
-    public function erpInsertDocument(array $product): array{
-
+    // Insere documento de compra no ERP
+    public function erpInsertDocument(array $orderReceived = []): array
+    {
         $url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
 
+        /**
+         * --- Exemplo de teste (5 linhas de entrada) ---
+         * Se não passares $orderReceived, usa este exemplo.
+         * NOTA: clientID deve ser o ID do FORNECEDOR no ERP.
+         */
+        if (empty($orderReceived)) {
+            $orderReceived = [
+                "clientID"      => 20,      // SupplierID
+                "wharehouseID"  => 1,
+                "salesmanID"    => 1,
+                "paymentID"     => 1,
+                "tenderID"      => 1,
+                "unloadAddress1"=> "",
+                "transDocument" => "FGR",   // doc de  ENTRADA
+                "comments"      => "Documento de teste via API — 5 lotes do mesmo artigo",
+                "lines" => [
+                    [
+                        "itemID"       => "NW005052",
+                        "quantity"     => 12,
+                        "price"        => 5.99,
+                        "unitOfSaleID" => "UNI",
+                        "propriedade1" => "ABCD123",
+                        "validade1"    => "2026-01-31",
+                        "colorID"      => 0,
+                        "sizeID"       => 0,
+                    ],
+                    [
+                        "itemID"       => "NW005052",
+                        "quantity"     => 8,
+                        "price"        => 5.99,
+                        "unitOfSaleID" => "UNI",
+                        "propriedade1" => "ABCD124",
+                        "validade1"    => "2026-06-30",
+                        "colorID"      => 0,
+                        "sizeID"       => 0,
+                    ],
+                    [
+                        "itemID"       => "NW005052",
+                        "quantity"     => 15,
+                        "price"        => 5.99,
+                        "unitOfSaleID" => "UNI",
+                        "propriedade1" => "ABCD125",
+                        "validade1"    => "2026-12-31",
+                        "colorID"      => 0,
+                        "sizeID"       => 0,
+                    ],
+                    [
+                        "itemID"       => "NW005052",
+                        "quantity"     => 20,
+                        "price"        => 5.99,
+                        "unitOfSaleID" => "UNI",
+                        "propriedade1" => "ABCD126",
+                        "validade1"    => "2027-06-30",
+                        "colorID"      => 0,
+                        "sizeID"       => 0,
+                    ],
+                    [
+                        "itemID"       => "NW005052",
+                        "quantity"     => 5,
+                        "price"        => 5.99,
+                        "unitOfSaleID" => "UNI",
+                        "propriedade1" => "ABCD127",
+                        "validade1"    => "2027-12-31",
+                        "colorID"      => 0,
+                        "sizeID"       => 0,
+                    ],
+                ],
+            ];
+        }
+
+        // Montar payload final
+        $payload = [
+            "clientID"               => $orderReceived['clientID']     ?? 20,
+            "wharehouseID"           => $orderReceived['wharehouseID'] ?? 1,
+            "transDocument"          => $orderReceived['transDocument'] ?? "FGR",
+            "transactionTaxIncluded" => false,
+            "comments"               => $orderReceived['comments'] ?? "",
+        ];
+
+        // (Opcional mas útil) envia também estes se vierem
+        if (isset($orderReceived['paymentID']))  { $payload['paymentID']  = (int) $orderReceived['paymentID']; }
+        if (isset($orderReceived['tenderID']))   { $payload['tenderID']   = (int) $orderReceived['tenderID']; }
+        if (isset($orderReceived['salesmanID'])) { $payload['salesmanID'] = (int) $orderReceived['salesmanID']; }
+
+        // Normalizar e garantir tipos nas linhas
+        $payload['lines'] = array_map(function ($l) {
+            return [
+                "itemID"       => $l['itemID'],
+                "quantity"     => (float) $l['quantity'],
+                "price"        => (float) $l['price'],
+                "unitOfSaleID" => $l['unitOfSaleID'] ?? "UNI",
+                "propriedade1" => $l['propriedade1'] ?? null,   // obrigatório se o artigo usa propriedades
+                "validade1"    => $l['validade1'] ?? null,      // YYYY-MM-DD
+                "colorID"      => (int) ($l['colorID'] ?? 0),
+                "sizeID"       => (int) ($l['sizeID'] ?? 0),
+            ];
+        }, $orderReceived['lines'] ?? []);
+
+        // Enviar request
+        try {
+            $response = \Illuminate\Support\Facades\Http::withHeaders([
+                    'Accept'       => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->timeout(30)
+                ->asJson()
+                ->post($url, $payload);
+
+            $json = null;
+            try { $json = $response->json(); } catch (\Throwable $ignore) {}
+
+            if ($response->successful()) {
+                return [
+                    'success' => true,
+                    'status'  => $response->status(),
+                    'data'    => $json,
+                    'payload' => $payload, // debug
+                ];
+            }
+
+            return [
+                'success' => false,
+                'status'  => $response->status(),
+                'error'   => $json['message'] ?? (string)$response->body(),
+                'payload' => $payload,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'success' => false,
+                'status'  => 0,
+                'error'   => 'Erro: ' . $e->getMessage(),
+                'payload' => $payload,
+            ];
+        }
     }
+
 
     // Ler a taxa de iva associada ao produto
     public function getProductTaxRate(string $value, string $taxGroup = 'IVA'): ?float

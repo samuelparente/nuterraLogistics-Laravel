@@ -8,11 +8,12 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'slug'             => 'O campo :attribute é obrigatório.',
+    'slug'                 => 'O campo :attribute é obrigatório.',
     'accepted'             => 'O campo :attribute deve ser aceite.',
     'accepted_if'          => 'O campo :attribute deve ser aceite quando :other é :value.',
     'active_url'           => 'O campo :attribute não é um URL válido.',
     'after'                => 'O campo :attribute deve ser uma data posterior a :date.',
+    'after_today'          => 'O campo :attribute deve ser uma data posterior a hoje.',
     'after_or_equal'       => 'O campo :attribute deve ser uma data posterior ou igual a :date.',
     'alpha'                => 'O campo :attribute deve conter apenas letras.',
     'alpha_dash'           => 'O campo :attribute deve conter apenas letras, números, traços e underscores.',
@@ -172,6 +173,15 @@ return [
         'role' => 'Papel',
         'is_active' => 'Estado',
         'cropped_avatar' => 'Avatar',
+        'expiry_date' => 'Data de Validade',
+        'batch_number' => 'Lote',
+        'quantity' => 'Quantidade',
+    ],
+
+    'custom' => [
+        'expiry_date' => [
+            'after' => 'O campo :attribute deve ser uma data posterior a hoje.',
+        ],
     ],
 
 ];
