@@ -11,7 +11,7 @@ use App\Models\Admin\OrderItem;
 use App\Models\Admin\Receiving;
 use App\Models\Admin\ReceivingItem;
 use App\Models\Admin\ReceivingBatch;
-
+use App\Http\Controllers\Admin\WooController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -677,9 +677,28 @@ class ReceivingController extends Controller
             $this->addSingleScanner($newRequest, $receiving);
 
 
-            return redirect()->back()->with('success', 'Produto criado e inserido.');
-        } catch (\Throwable $e) {
-            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+             try {
+                app(WooController::class)->createFromArray([
+                    'name'    => $request['product_full_description'],
+                    'sku'     => $request['item_sku'],
+                    'barcode' => $request['bar_code'] ?? null,
+                    'tax_group_id'  => $request['TaxableGroupID'],
+                ]);
+                $wooOk = true;
+            } catch (\Throwable $e) {
+
+                $wooOk = false; // não bloquear fluxo
+            }
+
+            return redirect()->back()->with(
+                    'success',
+                    $wooOk
+                    ? 'Produto criado no Sage, criado no WooCommerce e inserido na receção.'
+                    : 'Produto criado no Sage e inserido na receção. (WooCommerce indisponível no momento.)'
+                );        
+        } 
+        catch (\Throwable $e) {
+                return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
         }
 
     }

@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'woocommerce' => [
+        'url'     => env('WC_STORE_URL'),
+        'key'     => env('WC_CONSUMER_KEY'),
+        'secret'  => env('WC_CONSUMER_SECRET'),
+        'version' => env('WC_API_VERSION', 'wc/v3'),
+    ],
+
+
 ];
