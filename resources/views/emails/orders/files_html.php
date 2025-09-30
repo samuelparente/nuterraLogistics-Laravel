@@ -2,51 +2,67 @@
 <html lang="pt">
 <head>
     <meta charset="UTF-8">
-    <title>Novo Pedido - Nuterra Logistics</title>
+    <title>Novo Pedido — NUTERRA | logistics</title>
 </head>
-<body style="margin:0; padding:0; background-color:#f4f4f4; font-family: 'Segoe UI', sans-serif;">
+<body style="margin:0; padding:0; background:#f5f7fb; font-family:'Segoe UI', Arial, sans-serif;">
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f4; padding: 20px;">
-        <tr>
-            <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; overflow:hidden;">
-                    <tr>
-                        <td align="center" style="background-color: #1d1f2f; padding: 20px;">
-                            <img src="cid:nuterra-logo" alt="NUTERRA Logistics" style="max-width: 180px;">
-                        </td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 30px;">
-                            <h2 style="color: #000000;">Novo Pedido de Produtos</h2>
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:24px; background:#f5f7fb;">
+<tr>
+<td align="center">
+<table width="640" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:12px; overflow:hidden; box-shadow:0 6px 18px rgba(17,24,39,0.07);">
 
-                            <p style="color:#444444; font-size:15px;">
-                                Olá,<br><br>
-                                Foi gerado um novo pedido de produtos a fornecedores através da plataforma <strong>NUTERRA | logistics</strong>.
-                            </p>
+    <!-- Header (cores do backoffice) -->
+   <tr>
+        <td style="background:#222e3c; color:#fff; padding:20px 24px;">
+            <div style="font-weight:700; letter-spacing:.5px; font-size:14px; opacity:.9;">
+                NUTERRA <span>|</span> <span style="color:#ffbb00;">logistics</span>
+            </div>
+        </td>
+    </tr>
 
-                            <p style="color:#444444; font-size:15px; margin-top: 20px;">
-                                Os ficheiros em anexo contêm os produtos organizados por fornecedor:
-                            </p>
+    <!-- Corpo -->
+    <tr>
+        <td style="padding:28px;">
+            <h2 style="margin:0 0 6px; color:#0f172a; font-size:20px; font-weight:800; letter-spacing:.3px;">
+                PEDIDOS A FORNECEDORES - Novo pedido</span>
+            </h2>
 
-                            <ul style="color:#444444; font-size:15px;">
-                                @foreach ($downloadLinks as $file)
-                                    <li>📎 {{ $file }}</li>
-                                @endforeach
-                            </ul>
+            <p style="margin:8px 0 18px; color:#475569; font-size:14px;">
+                Foi gerado um novo pedido através da plataforma <strong>NUTERRA <span style="opacity:.6;">|</span> logistics</strong>.
+                Em anexo seguem os ficheiros com os produtos <em>organizados por fornecedor</em>.
+            </p>
 
-                            <p style="color:#444444; font-size:14px; margin-top: 30px;">
-                                Caso exista alguma dúvida, contactar diretamente o armazém.
-                            </p>
+            <!-- Lista de anexos -->
+            <div style="margin:18px 0;">
+                <h3 style="margin:0 0 8px; font-size:15px; color:#0f172a;">Ficheiros anexos</h3>
+                <ul style="margin:0; padding-left:18px; color:#475569; font-size:14px;">
+                    <pre style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:12px; font-family:'Courier New', monospace; font-size:13px; color:#334155; white-space:pre-wrap;">
+@foreach ($downloadLinks as $file)
+📎 {{ $file }}
+@endforeach
+            </pre>
+                </ul>
+            </div>
 
-                            <p style="color:#999999; font-size:12px; border-top:1px solid #eee; padding-top:20px; margin-top:30px;">
-                                Este é um email automático gerado pela plataforma Nuterra | Logistics.
-                            </p>
-                        </td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-    </table>
+            <p style="margin:24px 0 0; color:#64748b; font-size:14px;">
+                Para qualquer questão, contacte diretamente o armazém.
+            </p>
+
+            <!-- Rodapé -->
+            <div style="margin:22px 0 0; padding-top:14px; border-top:1px solid #e5e7eb;">
+                <p style="margin:0; font-size:12px; color:#94a3b8;">
+                    Este é um email automático gerado pela plataforma NUTERRA
+                    <span style="opacity:.6;">|</span>
+                    <span style="color:#f5a524;">logistics</span>.
+                </p>
+            </div>
+        </td>
+    </tr>
+
+</table>
+</td>
+</tr>
+</table>
 
 </body>
 </html>

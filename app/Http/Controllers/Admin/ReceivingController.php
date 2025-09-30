@@ -15,6 +15,9 @@ use App\Http\Controllers\Admin\WooController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Admin\AppSetting;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ReceivingFinalizedMail;
 
 class ReceivingController extends Controller
 {
@@ -349,18 +352,98 @@ class ReceivingController extends Controller
                 $result = $erpController->erpInsertDocument($orderReceived);
 
                 if (!($result['success'] ?? false)) {
-                    // Opcional: podes fazer rollback lógico aqui se preferires
                     throw new \Exception('ERP: ' . ($result['error'] ?? 'Falha a inserir documento.'));
                 }
 
-                // Se quiseres guardar no Receiving alguma referência do doc ERP (ex.: TransSerial/TransDocNumber):
-                // if (!empty($result['data']['TransSerial']) && !empty($result['data']['TransDocNumber'])) {
-                //     $receiving->update([
-                //         'erp_trans_serial'  => $result['data']['TransSerial'],
-                //         'erp_trans_document'=> $result['data']['TransDocument'] ?? $transDocument,
-                //         'erp_trans_number'  => $result['data']['TransDocNumber'],
-                //     ]);
-                // }
+                // Envia mail de resumo
+                $receiving->load(['supplier', 'items.brand']);
+
+                $brands = $receiving->items
+                    ->pluck('brand.name')
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
+
+                // Divergências: itens do pedido cujo recebido difere do encomendado
+                $divergences = $receiving->items
+                    ->filter(function ($i) {
+                        return $i->order_item_id !== null && (int)$i->ordered_qty !== (int)$i->received_qty;
+                    })
+                    ->map(function ($i) {
+                        $ordered  = (int)($i->ordered_qty ?? 0);
+                        $received = (int)($i->received_qty ?? 0);
+                        return [
+                            'sku'         => (string)$i->product_sku,
+                            'name'        => (string)$i->product_name,
+                            'ordered_qty' => $ordered,
+                            'received_qty'=> $received,
+                            'diff'        => $received - $ordered,
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+
+                // Novos itens marcados na receção
+                $newItems = $receiving->items
+                    ->where('is_new', 1)
+                    ->map(function ($i) {
+                        return [
+                            'sku'          => (string)$i->product_sku,
+                            'name'         => (string)$i->product_name,
+                            'received_qty' => (int)($i->received_qty ?? 0),
+                        ];
+                    })
+                    ->values()
+                    ->toArray();
+
+                // Meta/summary
+                $summary = [
+                    'supplier_name' => $receiving->supplier?->name ?? 'Fornecedor',
+                    'brands'        => $brands,
+                    'meta'          => [
+                        'order_id'        => $receiving->order_id,
+                        'receiving_id'    => $receiving->id,
+                        'received_at'     => optional($receiving->received_at)->format('Y-m-d H:i'),
+                        'received_by_name'=> optional($receiving->receivedBy ?? null, function ($u) { return $u->name ?? null; }) ?? (auth()->user()->name ?? 'Utilizador'),
+                        'notes'           => $receiving->notes,
+                    ],
+                ];
+
+                $settings = AppSetting::first();
+                if ($settings) {
+                    config([
+                        'mail.mailers.smtp.host'       => $settings->smtp_host,
+                        'mail.mailers.smtp.port'       => $settings->smtp_port,
+                        'mail.mailers.smtp.username'   => $settings->smtp_user,
+                        'mail.mailers.smtp.password'   => $settings->smtp_password,
+                        'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
+                        'mail.from.address'            => $settings->smtp_from_address,
+                        'mail.from.name'               => $settings->smtp_from_name,
+                    ]);
+                }
+
+                // Destinatários do email
+                $to = collect(json_decode($settings->notification_to ?? '[]', true))
+                    ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                    ->values()
+                    ->toArray();
+
+                $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
+                    ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                    ->values()
+                    ->toArray();
+
+                // Enviar email
+                try {
+                    Mail::to($to)->cc($cc)->send(new ReceivingFinalizedMail($summary, $divergences, $newItems));
+                } catch (\Throwable $mailEx) {
+                    // Não bloquear o fluxo se o email falhar; registra para debug
+                    \Log::error('Falha no envio de email de receção concluída', [
+                        'receiving_id' => $receiving->id,
+                        'error' => $mailEx->getMessage(),
+                    ]);
+                }
 
             } catch (\Throwable $e) {
                 return back()->with('error', 'Falha ao criar documento no ERP: ' . $e->getMessage());

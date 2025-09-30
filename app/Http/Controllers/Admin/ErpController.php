@@ -134,7 +134,7 @@ class ErpController extends Controller
                 return collect();
             }
 
-            dd($response['data']);
+            // dd($response['data']);
 
             $daysInPeriod = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
 

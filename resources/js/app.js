@@ -187,7 +187,6 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
     
     // Confirm sensitive changes
     window.confirmSensitiveUpdate = function (storeId) {
@@ -736,3 +735,45 @@ document.getElementById('btn-add-selected')?.addEventListener('click', async fun
     }
 });
 
+ // Loader minimalista e reutilizável
+    window.showLoadingSwal = function (title = 'A processar...', text = 'Por favor aguarde') {
+    Swal.fire({
+        title, text,
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        showConfirmButton: false,
+        didOpen: () => Swal.showLoading(),
+    });
+    };
+
+    // Ativa o loader em submits (POST/PUT/PATCH/DELETE)
+    // - Ignora GET
+    // - Ignora forms com data-no-loader
+    document.addEventListener('DOMContentLoaded', () => {
+    const wantsLoader = (form) => {
+        const method = (form.getAttribute('method') || 'GET').toUpperCase();
+        const noLoader = form.hasAttribute('data-no-loader');
+        return !noLoader && ['POST','PUT','PATCH','DELETE'].includes(method);
+    };
+
+    document.querySelectorAll('form').forEach(form => {
+        if (!wantsLoader(form)) return;
+
+        form.addEventListener('submit', (e) => {
+        // evita duplo submit
+        if (form.dataset.submitted === '1') {
+            e.preventDefault();
+            return;
+        }
+        form.dataset.submitted = '1';
+
+        // desativa botões de submit para prevenir cliques repetidos
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(el => el.disabled = true);
+
+        const title = form.getAttribute('data-loading-title') || 'A processar...';
+        const text  = form.getAttribute('data-loading-text')  || 'Por favor aguarde';
+        showLoadingSwal(title, text);
+        // não fechamos o Swal — o redirect fecha implicitamente
+        }, { passive: true });
+    });
+    });

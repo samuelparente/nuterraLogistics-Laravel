@@ -17,12 +17,10 @@ class OrderItem extends Model
         'quantity',
         'brand_id',
         'supplier_id',
-        'is_new', 
+  
     ];
 
-    protected $casts = [
-        'is_new' => 'boolean', 
-    ];
+   
 
     public function order()
     {
@@ -39,11 +37,5 @@ class OrderItem extends Model
         return $this->belongsTo(Supplier::class);
     }
 
-    /**
-     * Verifica se o item é novo.
-     */
-    public function isNew(): bool
-    {
-        return (bool) $this->is_new;
-    }
+   
 }

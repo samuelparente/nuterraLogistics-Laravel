@@ -23,6 +23,11 @@ class ReceivingItem extends Model
         'ordered_qty',
         'received_qty',
         'notes',
+        'is_new', 
+    ];
+
+     protected $casts = [
+        'is_new' => 'boolean', 
     ];
 
     public function receiving()
@@ -49,5 +54,9 @@ class ReceivingItem extends Model
     {
         return $this->hasMany(ReceivingBatch::class);
     }
-
+ 
+    public function isNew(): bool
+    {
+        return (bool) $this->is_new;
+    }
 }

@@ -10,25 +10,41 @@ class OrderFilesMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $downloadLinks;
-    protected $fileAttachments;
+    /** @var array Lista de nomes de ficheiros (opcional, não será mostrada na view nova) */
+    public array $downloadLinks;
 
-    public function __construct(array $attachments, array $downloadLinks)
+    /** @var array Resumo do pedido: ['suppliers' => [[supplier, brands[], lines]], 'count' => int] */
+    public array $orderSummary;
+
+    /** @var array Registos dos anexos: [['path' => ..., 'filename' => ..., ...], ...] */
+    protected array $fileAttachments;
+
+    /**
+     * @param array $attachments   Registos para anexar (disk 'public')
+     * @param array $downloadLinks (opcional) nomes dos ficheiros
+     * @param array $orderSummary  (opcional) resumo por fornecedor/marcas
+     */
+    public function __construct(array $attachments, array $downloadLinks = [], array $orderSummary = [])
     {
         $this->fileAttachments = $attachments;
-        $this->downloadLinks = $downloadLinks;
+        $this->downloadLinks   = $downloadLinks;
+        $this->orderSummary    = $orderSummary;
     }
 
     public function build()
     {
-        $mail = $this->subject('Novo Pedido de Encomendas a Fornecedores')
-                     ->markdown('emails.orders.files')
+        $mail = $this->subject('PEDIDOS A FORNECEDORES | Novo pedido')
+                     ->markdown('emails.orders.new') // <- vamos criar já a seguir
                      ->with([
-                         'downloadLinks' => $this->downloadLinks,
+                         'orderSummary' => $this->orderSummary,
+                         // 'downloadLinks' => $this->downloadLinks, // só se quiseres usar na view
                      ]);
 
         foreach ($this->fileAttachments as $file) {
-            $mail->attachFromStorageDisk('public', $file['path'], $file['filename']);
+            // Garante que existem as chaves antes de anexar
+            if (!empty($file['path']) && !empty($file['filename'])) {
+                $mail->attachFromStorageDisk('public', $file['path'], $file['filename']);
+            }
         }
 
         return $mail;

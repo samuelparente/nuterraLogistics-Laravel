@@ -262,115 +262,142 @@ class OrderController extends Controller
 
 
     public function update(Request $request, Order $order)
-    {
-        try {
+{
+    try {
+        if ($order->items()->count() === 0) {
+            return redirect()->back()->with('error', 'O pedido está vazio. Adicione produtos antes de enviar.');
+        }
 
-            if ($order->items()->count() === 0) {
-                return redirect()->back()->with('error', 'O pedido está vazio. Adicione produtos antes de enviar.');
-            }
+        // Validação
+        $validated = $request->validate([
+            'quantities' => ['array'],
+            'quantities.*' => ['required', 'integer', 'min:1'],
+        ]);
 
-            // Validação
-            $validated = $request->validate([
-                'quantities' => ['array'],
-                'quantities.*' => ['required','integer','min:1'],
+        // Atualizar quantidades (apenas itens deste pedido)
+        foreach ($validated['quantities'] ?? [] as $itemId => $qty) {
+            $order->items()
+                ->where('order_id', $order->id)
+                ->where('id', $itemId)
+                ->update(['quantity' => (int) $qty]);
+        }
+
+        // Atualizar status para "Ativo"
+        $order->status_id = 1;
+        $order->save();
+
+        // Nome da pasta: "julho_2025"
+        $folder = Str::slug(Carbon::now()->locale('pt_PT')->translatedFormat('F_Y'), '_');
+        $storagePath = "orders/{$folder}";
+
+        // Criar pasta se não existir
+        if (!Storage::disk('public')->exists($storagePath)) {
+            Storage::disk('public')->makeDirectory($storagePath);
+        }
+
+        // Carregar itens com relações necessárias
+        $order->load(['items.supplier', 'items.brand']);
+
+        // Agrupar apenas por fornecedores válidos
+        $gruposPorFornecedor = $order->items
+            ->filter(fn($item) => $item->supplier)   // ignora itens sem fornecedor
+            ->groupBy('supplier_id');
+
+        $fileRecords = [];
+        $suppliersSummary = [];
+
+        foreach ($gruposPorFornecedor as $supplierId => $items) {
+            $supplier    = $items->first()->supplier;
+            $supplierName = $supplier?->name ?? 'Fornecedor';
+            $supplierSlug = Str::slug($supplierName, '_');
+            $data        = Carbon::now()->format('Y-m-d');
+            $filename    = "{$supplierSlug}_{$data}.xlsx";
+            $filePath    = "{$storagePath}/{$filename}";
+
+            // Gerar Excel apenas com os itens deste fornecedor
+            Excel::store(new OrderExport($items), $filePath, 'public');
+
+            // Registo para anexar e guardar no pedido
+            $fileRecords[] = [
+                'path'       => $filePath,
+                'filename'   => $filename,
+                'supplier'   => $supplierName,
+                'created_at' => now()->toDateTimeString(),
+            ];
+
+            // ===== Resumo por fornecedor (marcas e nº linhas) =====
+            $brands = $items
+                ->pluck('brand.name') // usa relação carregada
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            $suppliersSummary[] = [
+                'supplier' => $supplierName,
+                'brands'   => $brands,           // array de strings
+                'lines'    => $items->count(),   // nº de linhas/itens neste pedido para o fornecedor
+            ];
+        }
+
+        // Salvar os ficheiros no próprio pedido (assumindo cast para array/json na model)
+        $order->files = $fileRecords;
+        $order->save();
+
+        // Configuração dinâmica de SMTP (se existir)
+        $settings = AppSetting::first();
+        if ($settings) {
+            config([
+                'mail.mailers.smtp.host'       => $settings->smtp_host,
+                'mail.mailers.smtp.port'       => $settings->smtp_port,
+                'mail.mailers.smtp.username'   => $settings->smtp_user,
+                'mail.mailers.smtp.password'   => $settings->smtp_password,
+                'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
+                'mail.from.address'            => $settings->smtp_from_address,
+                'mail.from.name'               => $settings->smtp_from_name,
             ]);
+        }
 
-            // Atualizar quantidades (só dos items deste pedido)
-            foreach ($validated['quantities'] ?? [] as $itemId => $qty) {
-                $order->items()
-                    ->where('order_id', $order->id)
-                    ->where('id', $itemId)
-                    ->update(['quantity' => (int) $qty]);
-            }
+        // Destinatários
+        $to = collect(json_decode($settings->notification_to ?? '[]', true))
+            ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->toArray();
 
-            // Atualizar status para "Ativo"
-            $order->status_id = 1;
-            $order->save();
+        $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
+            ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->toArray();
 
-            // Nome da pasta: "julho_2025"
-            $folder = Str::slug(Carbon::now()->locale('pt_PT')->translatedFormat('F_Y'), '_');
-            $storagePath = "orders/{$folder}";
+        // Construir o resumo a ser enviado para a view
+        $orderSummary = [
+            'suppliers' => $suppliersSummary,
+            'count'     => count($suppliersSummary),
+        ];
 
-            // Criar pasta se não existir
-            if (!Storage::disk('public')->exists($storagePath)) {
-                Storage::disk('public')->makeDirectory($storagePath);
-            }
-
-            // Carregar itens com relações
-            $order->load(['items.supplier', 'items.brand']);
-
-            $fornecedores = $order->items->groupBy(fn($item) => optional($item->supplier)->id ?? 'sem_fornecedor');
-
-            $downloadLinks = [];
-            $fileRecords = [];
-
-            foreach ($fornecedores as $items) {
-                $supplier = $items->first()->supplier;
-                $supplierName = Str::slug($supplier->name ?? 'fornecedor', '_');
-                $data = Carbon::now()->format('Y-m-d');
-                $filename = "{$supplierName}_{$data}.xlsx";
-                $filePath = "{$storagePath}/{$filename}";
-
-                // Gerar Excel apenas com os itens deste fornecedor
-                Excel::store(new OrderExport($items), $filePath, 'public');
-
-                $downloadLinks[] = $filename;
-
-                // Registo estruturado para JSON e envio
-                $fileRecords[] = [
-                    'path' => $filePath,
-                    'filename' => $filename,
-                    'supplier' => $supplier->name ?? 'Desconhecido',
-                    'created_at' => now()->toDateTimeString(),
-                ];
-            }
-
-            // Salvar o JSON na coluna 'files'
-            $order->files = $fileRecords;
-            $order->save();
-
-            $settings = AppSetting::first();
-
-            if ($settings) {
-                config([
-                    'mail.mailers.smtp.host' => $settings->smtp_host,
-                    'mail.mailers.smtp.port' => $settings->smtp_port,
-                    'mail.mailers.smtp.username' => $settings->smtp_user,
-                    'mail.mailers.smtp.password' => $settings->smtp_password,
-                    'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
-
-                    'mail.from.address' => $settings->smtp_from_address,
-                    'mail.from.name' => $settings->smtp_from_name,
-                ]);
-            }
-
-                        
-            $to = collect(json_decode($settings->notification_to ?? '[]'))
-                ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                ->values()
-                ->toArray();
-
-            $cc = collect(json_decode($settings->notification_cc ?? '[]'))
-                ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                ->values()
-                ->toArray();
-
-            // Exemplo de envio
+        // Enviar email (anexos + resumo; sem listar nomes no corpo)
+        if (!empty($to)) {
             Mail::to($to)
                 ->cc($cc)
-                ->send(new OrderFilesMail($fileRecords, collect($fileRecords)->pluck('filename')->toArray()));
-
-            $msg = "Pedido enviado com sucesso!";
-
-            return redirect()->route('backoffice.dashboard')->with('success', $msg);
-
-        } catch (\Throwable $e) {
-            // Reverter estado para "pending" em caso de falha
-            $order->status_id = 3;
-            $order->save();
-
-            return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte.' .$e);
+                ->send(new OrderFilesMail(
+                    attachments: $fileRecords,
+                    downloadLinks: [],              // deixamos vazio; os ficheiros estão em anexo
+                    orderSummary: $orderSummary     // <-- novo resumo para a view
+                ));
         }
+
+        return redirect()
+            ->route('backoffice.dashboard')
+            ->with('success', 'Pedido enviado com sucesso!');
+
+    } catch (\Throwable $e) {
+        // Reverter estado para "pending" em caso de falha
+        $order->status_id = 3;
+        $order->save();
+
+        return redirect()->back()->with('error', 'Erro ao enviar o pedido. Contacte o suporte. '.$e->getMessage());
     }
+}
+
 
 }
