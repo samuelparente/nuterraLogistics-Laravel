@@ -347,7 +347,11 @@ class ErpController extends Controller
     // Insere novo produto no erp
     public function erpCreateProduct(array $product): array
     {
-        $url = 'http://nuterra.dyndns.biz:45248/testes/api/Artigos';
+        // Endpoint testes
+        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/Artigos';
+
+        // Endpoint producao
+        $url = 'http://nuterra.dyndns.biz:45248/sage/api/Artigos';
 
         
         // Montar payload com base no $product
@@ -421,11 +425,15 @@ class ErpController extends Controller
     // Insere documento de compra no ERP
     public function erpInsertDocument(array $orderReceived = []): array
     {
-        $url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
+
+        // Endpoint testes
+        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
+
+        // Endpoint producao
+        $url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
 
         /**
-         * --- Exemplo de teste (5 linhas de entrada) ---
-         * Se não passares $orderReceived, usa este exemplo.
+    
          * NOTA: clientID deve ser o ID do FORNECEDOR no ERP.
          */
         if (empty($orderReceived)) {
