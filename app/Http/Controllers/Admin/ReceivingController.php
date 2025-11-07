@@ -744,7 +744,7 @@ class ReceivingController extends Controller
             $product['BarCodeType'] = 0;
             $product['UnitOfSaleID'] = "UNI";
             $product['TaxableGroupID'] = $request['TaxableGroupID'];
-            $product['pc'] = $request['pc'];
+            $product['pc'] = !empty($request['pc']) ? $request['pc'] : 0;
             $product['SupplierID'] = $supplierErpId;
             $product['FamilyID'] = $brandErpId;
 
