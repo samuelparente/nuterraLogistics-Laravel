@@ -33,6 +33,9 @@ class WooController extends Controller
      * - IVA conforme tax_group_id (1/2/3)
      *
      * Espera: ['name','sku','barcode'?,'tax_group_id'?]
+     * 
+     * --FIX: Adicionado o simbolo # antes do sku do produto devido a regra da integracao do erp para nao abrir o produto
+     *  para venda antes de corrigir e editar tudo no woocommerce--
      */
     public function createFromArray(array $payload): array
     {
@@ -42,9 +45,11 @@ class WooController extends Controller
         // Mapeia 1/2/3 para tax_status / tax_class do Woo
         [$taxStatus, $taxClass] = $this->mapTaxByGroupId($payload['tax_group_id'] ?? null);
 
+        $temporary_sku = '#' . $payload['sku']; // Adiciona o simbolo # antes do sku do produto para evitar abertura para venda
+
         $data = [
             'name'           => $payload['name'],
-            'sku'            => $payload['sku'],
+            'sku'            => $temporary_sku,
             'status'         => 'private',
             'type'           => 'simple',
             'manage_stock'   => true,

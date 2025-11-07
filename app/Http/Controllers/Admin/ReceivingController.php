@@ -30,38 +30,38 @@ class ReceivingController extends Controller
     }
 
     public function index()
-{
-    $orders = Order::with(['items.supplier'])
-        ->whereHas('status', fn($q) => $q->where('code', 'active'))
-        ->whereHas('items', function ($query) {
-            $query->whereHas('supplier')
-                ->whereRaw('NOT EXISTS (
-                    SELECT 1 FROM receivings
-                    WHERE receivings.order_id = order_items.order_id
-                      AND receivings.supplier_id = order_items.supplier_id
-                      AND receivings.deleted_at IS NULL
-                )');
-        })
-        ->orderByDesc('created_at')
-        ->paginate(paginationPerPage());
+    {
+        $orders = Order::with(['items.supplier'])
+            ->whereHas('status', fn($q) => $q->where('code', 'active'))
+            ->whereHas('items', function ($query) {
+                $query->whereHas('supplier')
+                    ->whereRaw('NOT EXISTS (
+                        SELECT 1 FROM receivings
+                        WHERE receivings.order_id = order_items.order_id
+                        AND receivings.supplier_id = order_items.supplier_id
+                        AND receivings.deleted_at IS NULL
+                    )');
+            })
+            ->orderByDesc('created_at')
+            ->paginate(paginationPerPage());
 
-    // suppliers_without_receiving: fornecedores que AINDA NÃO têm qualquer receção (aberta ou concluída)
-    foreach ($orders as $order) {
-        $suppliers = $order->items
-            ->filter(fn($item) => $item->supplier)
-            ->pluck('supplier')
-            ->unique('id');
+        // suppliers_without_receiving: fornecedores que AINDA NÃO têm qualquer receção (aberta ou concluída)
+        foreach ($orders as $order) {
+            $suppliers = $order->items
+                ->filter(fn($item) => $item->supplier)
+                ->pluck('supplier')
+                ->unique('id');
 
-        $order->suppliers_without_receiving = $suppliers->filter(function ($supplier) use ($order) {
-            return !Receiving::where('order_id', $order->id)
-                ->where('supplier_id', $supplier->id)
-                ->whereNull('deleted_at')
-                ->exists();
-        });
+            $order->suppliers_without_receiving = $suppliers->filter(function ($supplier) use ($order) {
+                return !Receiving::where('order_id', $order->id)
+                    ->where('supplier_id', $supplier->id)
+                    ->whereNull('deleted_at')
+                    ->exists();
+            });
+        }
+
+        return view('layouts.admin.receivings.index', compact('orders'));
     }
-
-    return view('layouts.admin.receivings.index', compact('orders'));
-}
 
 
 
@@ -235,7 +235,7 @@ class ReceivingController extends Controller
                     $totalQty = $item->batches()->sum('quantity');
 
                     // Validação: lote obrigatório com quantidade
-                    if ($totalQty <= 0) {
+                    if ($totalQty < 0) {
                         throw new \Exception("Sem lote e quantidade no item '{$item->product_name}'. Entrada não finalizada.");
                     }
 
@@ -307,12 +307,22 @@ class ReceivingController extends Controller
                     foreach ($item->batches as $batch) {
                         $qty = (float) $batch->quantity;
 
-                        // Determinar preço (fallback ao ERP se necessário)
-                        $price = $priceFromOrder;
-                        if ($price === null) {
-                            $p = $erp->getProductBySkuOrBarcode($itemId);
-                            $price = (float) ($p['CostPrice'] ?? 0);
+                        //Se a quantidade for 0 (ou negativa), ignora o lote
+                        if ($qty <= 0) {
+                            continue;
                         }
+                        
+                        // Determinar preço (fallback ao ERP se necessário)
+                        // $price = $priceFromOrder;
+                        // if ($price === null) {
+                        //     $p = $erp->getProductBySkuOrBarcode($itemId);
+                        //     $price = (float) ($p['CostPrice'] ?? 0);
+                        // }
+
+                        // NOVO:Preço e desconto desde a ultima fatura
+                        $result = app(ErpController::class)->getLastBuyConditions($itemId);
+                        $price = $result['UnitPrice'] ?? 0;
+                        $DiscountPercent = $result['DiscountPercent'] ?? 0;
 
                         // Normalizar data (YYYY-MM-DD)
                         $validade = \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d');
@@ -321,6 +331,7 @@ class ReceivingController extends Controller
                             'itemID'       => $itemId,
                             'quantity'     => $qty,
                             'price'        => (float) $price,
+                            'DiscountPercent'     => (float) $DiscountPercent,
                             'unitOfSaleID' => 'UNI',
                             'propriedade1' => (string) $batch->batch_number,
                             'validade1'    => $validade,
@@ -503,7 +514,7 @@ class ReceivingController extends Controller
     {
         $request->validate([
             'item_sku'      => 'required|string',
-            'quantity'      => 'required|integer|min:1',
+            'quantity'      => 'required|integer|min:0',
             'product_name'  => 'required|string',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
@@ -562,7 +573,7 @@ class ReceivingController extends Controller
     {
         $request->validate([
             'item_sku'      => 'required|string',
-            'quantity'      => 'required|integer|min:1',
+            'quantity'      => 'required|integer|min:0',
             'product_name'  => 'required|string',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
@@ -617,7 +628,7 @@ class ReceivingController extends Controller
 
             return redirect()->back()->with('success', 'Item inserido com sucesso.');
         } catch (\Throwable $e) {
-            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
+            return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.' . $e);
         }
     }
 
@@ -677,7 +688,7 @@ class ReceivingController extends Controller
     public function storeBatch(Request $request, ReceivingItem $item)
     {
         $validated = $request->validate([
-            'quantity'      => 'required|integer|min:1',
+            'quantity'      => 'required|integer|min:0',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
         ]);
@@ -733,7 +744,7 @@ class ReceivingController extends Controller
             $product['BarCodeType'] = 0;
             $product['UnitOfSaleID'] = "UNI";
             $product['TaxableGroupID'] = $request['TaxableGroupID'];
-            $product['pc'] = $request['pc'];
+            $product['pc'] = !empty($request['pc']) ? $request['pc'] : 0;
             $product['SupplierID'] = $supplierErpId;
             $product['FamilyID'] = $brandErpId;
 

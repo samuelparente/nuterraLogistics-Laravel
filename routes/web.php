@@ -24,7 +24,9 @@ Route::post('/j1Rs0FsWMuucQI3OOdxv6mLoLXO4cL8yfvoE0sFUscYwVHwAIJbYuByQmqKXRTO2/l
 // Backoffice 
 Route::middleware('auth')->group(function () {
 
-    
+    //Debug
+ Route::get('/backoffice/test-pcu/{itemId}', [ErpController::class, 'lastBuyConditions'])
+        ->name('erp.lastBuyConditions');
     // Painel admin dashboard
     Route::get('/backoffice/dashboard', function () {
         return view('layouts.admin.dashboard.dashboard_admin', ['user' => Auth::user()]);
