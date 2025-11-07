@@ -513,6 +513,7 @@ class ErpController extends Controller
                 "itemID"       => $l['itemID'],
                 "quantity"     => (float) $l['quantity'],
                 "price"        => (float) $l['price'],
+                "DiscountPercent" => (float) ($l['DiscountPercent'] ?? 0),
                 "unitOfSaleID" => $l['unitOfSaleID'] ?? "UNI",
                 "propriedade1" => $l['propriedade1'] ?? null,   // obrigatório se o artigo usa propriedades
                 "validade1"    => $l['validade1'] ?? null,      // YYYY-MM-DD
@@ -521,6 +522,7 @@ class ErpController extends Controller
             ];
         }, $orderReceived['lines'] ?? []);
 
+        
         // Enviar request
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -704,6 +706,75 @@ class ErpController extends Controller
             }
         }
     }
+public function getLastBuyConditions(string $itemId): ?array
+{
+    // 1) Buscar os 3 campos na ItemCostChange
+    $query1 = "
+        SELECT LastTransSerial, LastTransDocument, LastTransDocNumber
+        FROM dbo.ItemCostChange
+        WHERE ItemID = '{$itemId}'
+    ";
 
+    $res1 = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type'  => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($this->endpoint, ['query' => $query1]);
+
+    if (!$res1->successful() || empty($res1['data'][0])) {
+        return null;
+    }
+
+    // Usa a primeira linha devolvida
+    $serial    = $res1['data'][0]['LastTransSerial'];
+    $document  = $res1['data'][0]['LastTransDocument'];
+    $docNumber = $res1['data'][0]['LastTransDocNumber'];
+
+    // 2) Buscar Units, UnitPrice, DiscountPercent na BuyTransactionDetails
+    $query2 = "
+        SELECT Units, UnitPrice, DiscountPercent
+        FROM dbo.BuyTransactionDetails
+        WHERE ItemID = '{$itemId}'
+          AND TransSerial   = '{$serial}'
+          AND TransDocument = '{$document}'
+          AND TransDocNumber= '{$docNumber}'
+    ";
+
+    $res2 = \Illuminate\Support\Facades\Http::withHeaders([
+            'Authorization' => 'Bearer ' . $this->token,
+            'Content-Type'  => 'application/json',
+        ])
+        ->withoutVerifying()
+        ->post($this->endpoint, ['query' => $query2]);
+
+    if (!$res2->successful() || empty($res2['data'][0])) {
+        return null;
+    }
+        
+    // dd([
+    //     'status' => $res2->status(),
+    //     'body'   => $res2->body(),     // string JSON crua
+    //     'json'   => $res2->json(),     // array decodificado
+    // ]);
+
+    // Retorna exatamente os campos pedidos
+    return [
+        'Units'           => $res2['data'][0]['Units'],
+        'UnitPrice'       => $res2['data'][0]['UnitPrice'],
+        'DiscountPercent' => $res2['data'][0]['DiscountPercent'],
+    ];
+}
+
+
+public function lastBuyConditions(string $itemId)
+{
+    $data = $this->getLastBuyConditions($itemId);
+
+    return response()->json([
+        'success' => (bool) $data,
+        'data'    => $data,
+    ]);
+}
 
 }

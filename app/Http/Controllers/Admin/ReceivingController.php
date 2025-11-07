@@ -313,11 +313,16 @@ class ReceivingController extends Controller
                         }
                         
                         // Determinar preço (fallback ao ERP se necessário)
-                        $price = $priceFromOrder;
-                        if ($price === null) {
-                            $p = $erp->getProductBySkuOrBarcode($itemId);
-                            $price = (float) ($p['CostPrice'] ?? 0);
-                        }
+                        // $price = $priceFromOrder;
+                        // if ($price === null) {
+                        //     $p = $erp->getProductBySkuOrBarcode($itemId);
+                        //     $price = (float) ($p['CostPrice'] ?? 0);
+                        // }
+
+                        // NOVO:Preço e desconto desde a ultima fatura
+                        $result = app(ErpController::class)->getLastBuyConditions($itemId);
+                        $price = $result['UnitPrice'] ?? 0;
+                        $DiscountPercent = $result['DiscountPercent'] ?? 0;
 
                         // Normalizar data (YYYY-MM-DD)
                         $validade = \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d');
@@ -326,6 +331,7 @@ class ReceivingController extends Controller
                             'itemID'       => $itemId,
                             'quantity'     => $qty,
                             'price'        => (float) $price,
+                            'DiscountPercent'     => (float) $DiscountPercent,
                             'unitOfSaleID' => 'UNI',
                             'propriedade1' => (string) $batch->batch_number,
                             'validade1'    => $validade,
