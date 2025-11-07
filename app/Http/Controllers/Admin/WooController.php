@@ -73,6 +73,7 @@ class WooController extends Controller
                 config('services.woocommerce.key'),
                 config('services.woocommerce.secret')
             )
+            ->withOptions(['verify' => false])
             ->timeout(30)
             ->post("{$baseUrl}/wp-json/{$version}/products", $data);
 
