@@ -366,7 +366,7 @@ class ErpController extends Controller
             "SupplierID"   => $product['SupplierID'] ?? 0,
             "FamilyID"     => $product['FamilyID'] ?? 0,
 
-            "ItemFirstGroupID"  => $product['ItemFirstGroupID']  ?? 0,
+            "ItemFirstGroupID"  => $product['ItemFirstGroupID']  ?? 1, //define MARCA no campo extra
             "ItemSecondGroupID" => $product['ItemSecondGroupID'] ?? 0,
             "ItemThirdGroupID"  => $product['ItemThirdGroupID']  ?? 0,
 
@@ -375,6 +375,8 @@ class ErpController extends Controller
             "cores"          => $product['cores'] ?? [],
             "tamanhos"       => $product['tamanhos'] ?? [],
             "ChavePropriedade1" => 'LOTE',
+
+            "ProductCategory" => 1, // Define M - Mercadoria
         ];
 
         
