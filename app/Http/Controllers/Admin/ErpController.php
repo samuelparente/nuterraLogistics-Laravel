@@ -10,6 +10,8 @@ use App\Models\Admin\Supplier;
 use App\Models\Admin\Brand;
 use App\Models\Admin\Bonus;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ErpController extends Controller
 {
@@ -353,7 +355,23 @@ class ErpController extends Controller
         // Endpoint producao
         $url = 'http://nuterra.dyndns.biz:45248/sage/api/Artigos';
 
-        
+        // 🔒 Validação antes de enviar para o ERP
+        $validator = Validator::make($product, [
+            'ShortDescription' => 'nullable|string|max:49',
+        ], [
+            'ShortDescription.max' => 'O campo Descrição curta só pode ter no máximo 49 caracteres.',
+        ]);
+
+        if ($validator->fails()) {
+            // ❌ Retorna erro consistente com o resto do método
+            return [
+                'success' => false,
+                'status'  => 422,
+                'error'   => $validator->errors()->first('ShortDescription'),
+                'payload' => $product,
+            ];
+        }
+
         // Montar payload com base no $product
         $payload = [
             "ItemID"           => $product['ItemID'] ?? '',
@@ -429,10 +447,10 @@ class ErpController extends Controller
     {
 
         // Endpoint testes
-        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
+        $url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
 
         // Endpoint producao
-        $url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
+        //$url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
 
         /**
     

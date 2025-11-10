@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Admin\AppSetting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ReceivingFinalizedMail;
+use Illuminate\Support\Facades\Redirect;
+
 
 class ReceivingController extends Controller
 {
@@ -748,11 +750,29 @@ class ReceivingController extends Controller
             $product['SupplierID'] = $supplierErpId;
             $product['FamilyID'] = $brandErpId;
 
-            try{
-                 $result = $erpController->erpCreateProduct($product);
+            try {
+                $result = $erpController->erpCreateProduct($product);
+
+                // 👇 Se falhar (incluindo validação 28 chars), não continua
+                if (!$result['success']) {
+                    // Se for erro de validação (status 422)
+                    if ($result['status'] === 422) {
+                        return redirect()
+                            ->back()
+                        ->with('error',  $result['error'])
+                            ->withInput();
+                    }
+
+                    // Outros erros do ERP
+                    return redirect()
+                        ->back()
+                        ->with('error', 'Erro ao criar produto no ERP: ' . $result['error'])
+                        ->withInput();
+                }
             } catch (\Throwable $e) {
-                return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.' . $e);
+                return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
             }
+
 
             //O pedido para o inserir na receção com lote
 
@@ -788,7 +808,7 @@ class ReceivingController extends Controller
                     'success',
                     $wooOk
                     ? 'Produto criado no Sage, criado no WooCommerce e inserido na receção.'
-                    : 'Produto criado no Sage e inserido na receção. (WooCommerce indisponível no momento.)'
+                    : 'Produto criado no Sage e inserido na receção. (WooCommerce indisponível no momento.)' . $e
                 );        
         } 
         catch (\Throwable $e) {
