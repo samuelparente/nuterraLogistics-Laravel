@@ -3,7 +3,6 @@
 namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
-
 class AppSetting extends Model
 {
     protected $table = 'app_settings';
@@ -27,9 +26,6 @@ class AppSetting extends Model
 
     public $timestamps = true;
 
-    /**
-     * Retorna as configurações SMTP completas.
-     */
     public static function getMailSettings(): array
     {
         $settings = self::first();
@@ -37,43 +33,75 @@ class AppSetting extends Model
         if (!$settings) {
             return [
                 'transport' => env('MAIL_MAILER', 'smtp'),
-                'host' => env('MAIL_HOST'),
-                'port' => env('MAIL_PORT'),
-                'encryption' => env('MAIL_ENCRYPTION'),
-                'username' => env('MAIL_USERNAME'),
-                'password' => env('MAIL_PASSWORD'),
-                'from' => [
+                'host'      => env('MAIL_HOST'),
+                'port'      => env('MAIL_PORT'),
+                'encryption'=> env('MAIL_ENCRYPTION'),
+                'username'  => env('MAIL_USERNAME'),
+                'password'  => env('MAIL_PASSWORD'),
+                'from'      => [
                     'address' => env('MAIL_FROM_ADDRESS'),
-                    'name' => env('MAIL_FROM_NAME'),
+                    'name'    => env('MAIL_FROM_NAME'),
                 ],
-                'to' => [],
-                'cc' => [],
+                'to'        => [],
+                'cc'        => [],
             ];
         }
 
         return [
             'transport' => 'smtp',
-            'host' => $settings->smtp_host,
-            'port' => $settings->smtp_port,
-            'encryption' => $settings->smtp_encryption,
-            'username' => $settings->smtp_user,
-            'password' => $settings->smtp_password,
-            'from' => [
+            'host'      => $settings->smtp_host,
+            'port'      => $settings->smtp_port,
+            'encryption'=> $settings->smtp_encryption,
+            'username'  => $settings->smtp_user,
+            'password'  => $settings->smtp_password,
+            'from'      => [
                 'address' => $settings->smtp_from_address,
-                'name' => $settings->smtp_from_name,
+                'name'    => $settings->smtp_from_name,
             ],
-            'to' => $settings->notification_to ?? [],
-            'cc' => $settings->notification_cc ?? [],
+            'to'        => $settings->toList(),
+            'cc'        => $settings->ccList(),
         ];
     }
 
     public function toList(): array
     {
-        return $this->notification_to ?? [];
+        $value = $this->notification_to;
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+
+            return [$value];
+        }
+
+        return [];
     }
 
     public function ccList(): array
     {
-        return $this->notification_cc ?? [];
+        $value = $this->notification_cc;
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            $decoded = json_decode($value, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                return $decoded;
+            }
+
+            return [$value];
+        }
+
+        return [];
     }
 }

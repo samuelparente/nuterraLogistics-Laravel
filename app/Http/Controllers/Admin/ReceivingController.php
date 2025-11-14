@@ -188,7 +188,19 @@ class ReceivingController extends Controller
 
         $items = $receiving->items()->with(['orderItem', 'batches'])->get();
 
-        return view('layouts.admin.receivings.form', compact('order', 'supplier', 'receiving', 'items'));
+        // Destinatários a partir das definições globais
+        $settings = AppSetting::first();
+        $mailTo   = $settings?->toList() ?? [];
+        $mailCc   = $settings?->ccList() ?? [];
+
+        return view('layouts.admin.receivings.form', compact(
+            'order',
+            'supplier',
+            'receiving',
+            'items',
+            'mailTo',
+            'mailCc'
+        ));
     }
 
     public function store(Request $request, Order $order, Supplier $supplier)
@@ -221,14 +233,41 @@ class ReceivingController extends Controller
 
     public function finalize(Request $request, Order $order, Supplier $supplier)
     {
-        $validated = $request->validate([
-            'notes' => 'nullable|string|max:1000',
+         $validated = $request->validate([
+            'notes'      => 'nullable|string|max:1000',
+            'mail_to'    => ['nullable', 'array'],
+            'mail_to.*'  => ['required', 'email'],
+            'mail_cc'    => ['nullable', 'array'],
+            'mail_cc.*'  => ['required', 'email'],
         ]);
 
         $receiving = Receiving::where('order_id', $order->id)
             ->where('supplier_id', $supplier->id)
             ->firstOrFail();
 
+        // Preparar destinatários a partir do formulário
+        $to = collect($validated['mail_to'] ?? [])
+            ->filter()
+            ->values()
+            ->all();
+
+        $cc = collect($validated['mail_cc'] ?? [])
+            ->filter()
+            ->values()
+            ->all();
+
+        // Se não há ninguém seleccionado
+        if (empty($to) && empty($cc)) {
+            return back()
+                ->withInput()
+                ->with('error', 'Seleccione pelo menos um destinatário (Para ou CC).');
+        }
+
+        // Se não há "Para" mas há CC → promove um CC para To
+        if (empty($to) && !empty($cc)) {
+            $to[] = array_shift($cc); // primeiro CC vai para Para:
+        }
+        
         try {
             DB::transaction(function () use ($receiving, $validated) {
                 foreach ($receiving->items as $item) {
@@ -435,16 +474,18 @@ class ReceivingController extends Controller
                 }
 
                 // Destinatários do email
-                $to = collect(json_decode($settings->notification_to ?? '[]', true))
-                    ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                    ->values()
-                    ->toArray();
+                // $to = collect(json_decode($settings->notification_to ?? '[]', true))
+                //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                //     ->values()
+                //     ->toArray();
 
-                $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
-                    ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                    ->values()
-                    ->toArray();
+                // $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
+                //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                //     ->values()
+                //     ->toArray();
 
+                // Destinatarios calculados acima conforme selecção do formulario , em vez de enviar para todos.
+                
                 // Enviar email
                 try {
                     Mail::to($to)->cc($cc)->send(new ReceivingFinalizedMail($summary, $divergences, $newItems));

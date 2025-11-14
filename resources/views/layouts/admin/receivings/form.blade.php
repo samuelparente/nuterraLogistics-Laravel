@@ -189,24 +189,83 @@
                     <input type="hidden" name="order_id" value="{{ $order->id }}">
                     <input type="hidden" name="supplier_id" value="{{ $supplier->id }}">
 
-                {{-- Notas --}}
-                <div class="mb-3">
-                    <label for="notes" class="form-label">Notas</label>
-                    <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
-                </div>
+                    {{-- Destinatários do email de receção finalizada --}}
+                    @if(!empty($mailTo) || !empty($mailCc))
+                        <div class="card mb-3">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Destinatários do email</h5>
+                            </div>
+                            <div class="card-body">
+
+                                {{-- PARA: --}}
+                                @if(!empty($mailTo))
+                                    <h6 class="mb-2">Para:</h6>
+                                    @foreach($mailTo as $email)
+                                        <div class="form-check mb-1">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                name="mail_to[]"
+                                                value="{{ $email }}"
+                                                id="mail_to_{{ $loop->index }}"
+                                                checked
+                                            >
+                                            <label class="form-check-label" for="mail_to_{{ $loop->index }}">
+                                                {{ $email }}
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                @endif
+
+                                {{-- CC: --}}
+                                @if(!empty($mailCc))
+                                    <hr class="my-3">
+                                    <h6 class="mb-2">CC:</h6>
+                                    @foreach($mailCc as $email)
+                                        <div class="form-check mb-1">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                name="mail_cc[]"
+                                                value="{{ $email }}"
+                                                id="mail_cc_{{ $loop->index }}"
+                                                checked
+                                            >
+                                            <label class="form-check-label" for="mail_cc_{{ $loop->index }}">
+                                                {{ $email }}
+                                            </label>
+                                        </div>
+                                    @endforeach
+                                @endif
+
+                            </div>
+                        </div>
+                    @endif
+
+                    {{-- Notas --}}
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notas</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
+                    </div>
+
                     {{-- Ações --}}
                     <div class="d-flex gap-2">
                         {{-- Guardar (POST para store) --}}
-                        <button type="submit" formaction="{{ route('receivings.store', [$order->id, $supplier->id]) }}" class="btn btn-secondary">
+                        <button type="submit"
+                                formaction="{{ route('receivings.store', [$order->id, $supplier->id]) }}"
+                                class="btn btn-secondary">
                             <i class="bi bi-floppy"></i> Guardar
                         </button>
 
                         {{-- Finalizar (POST para finalize) --}}
-                        <button type="submit" formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}" class="btn btn-primary">
-                             <i class="bi bi-check2-circle"></i> Finalizar
+                        <button type="submit"
+                                formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}"
+                                class="btn btn-primary">
+                            <i class="bi bi-check2-circle"></i> Finalizar
                         </button>
                     </div>
                 </form>
+
             </div>
         </div>
   </div>
