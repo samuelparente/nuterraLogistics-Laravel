@@ -136,7 +136,6 @@ class ErpController extends Controller
                 return collect();
             }
 
-            // dd($response['data']);
 
             $daysInPeriod = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
 
@@ -341,8 +340,6 @@ class ErpController extends Controller
         
         //$result = $this->createProduct($product);
 
-        //dd($result);
-
         return $product;
     }
 
@@ -457,73 +454,12 @@ class ErpController extends Controller
          * NOTA: clientID deve ser o ID do FORNECEDOR no ERP.
          */
         if (empty($orderReceived)) {
-            $orderReceived = [
-                "clientID"      => 20,      // SupplierID
-                "wharehouseID"  => 1,
-                "salesmanID"    => 1,
-                "paymentID"     => 1,
-                "tenderID"      => 1,
-                "unloadAddress1"=> "",
-                "transDocument" => "FGR",   // doc de  ENTRADA
-                "comments"      => "Documento de teste via API — 5 lotes do mesmo artigo",
-                "lines" => [
-                    [
-                        "itemID"       => "NW005052",
-                        "quantity"     => 12,
-                        "price"        => 5.99,
-                        "unitOfSaleID" => "UNI",
-                        "propriedade1" => "ABCD123",
-                        "validade1"    => "2026-01-31",
-                        "colorID"      => 0,
-                        "sizeID"       => 0,
-                    ],
-                    [
-                        "itemID"       => "NW005052",
-                        "quantity"     => 8,
-                        "price"        => 5.99,
-                        "unitOfSaleID" => "UNI",
-                        "propriedade1" => "ABCD124",
-                        "validade1"    => "2026-06-30",
-                        "colorID"      => 0,
-                        "sizeID"       => 0,
-                    ],
-                    [
-                        "itemID"       => "NW005052",
-                        "quantity"     => 15,
-                        "price"        => 5.99,
-                        "unitOfSaleID" => "UNI",
-                        "propriedade1" => "ABCD125",
-                        "validade1"    => "2026-12-31",
-                        "colorID"      => 0,
-                        "sizeID"       => 0,
-                    ],
-                    [
-                        "itemID"       => "NW005052",
-                        "quantity"     => 20,
-                        "price"        => 5.99,
-                        "unitOfSaleID" => "UNI",
-                        "propriedade1" => "ABCD126",
-                        "validade1"    => "2027-06-30",
-                        "colorID"      => 0,
-                        "sizeID"       => 0,
-                    ],
-                    [
-                        "itemID"       => "NW005052",
-                        "quantity"     => 5,
-                        "price"        => 5.99,
-                        "unitOfSaleID" => "UNI",
-                        "propriedade1" => "ABCD127",
-                        "validade1"    => "2027-12-31",
-                        "colorID"      => 0,
-                        "sizeID"       => 0,
-                    ],
-                ],
-            ];
+            
         }
 
         // Montar payload final
         //"transactionTaxIncluded" => false, tem de ser dinamico e de acordo com a fatura 
-        // para já vamos so verificar se o fornecedor era com tax ou nao
+        // para já vamos so verificar se o ultimo doc era com tax ou nao
         // futuramente validamos e recalculamos os produtos se fornecedor mudar de true para false e nao bater certo
         // com o documento anterior
 
@@ -531,7 +467,7 @@ class ErpController extends Controller
             "clientID"               => $orderReceived['clientID']     ?? 20,
             "wharehouseID"           => $orderReceived['wharehouseID'] ?? 1,
             "transDocument"          => $orderReceived['transDocument'] ?? "FGR",
-            "transactionTaxIncluded" => false,
+            "transactionTaxIncluded" => (bool) ($orderReceived['transactionTaxIncluded'] ?? false),
             "comments"               => $orderReceived['comments'] ?? "",
         ];
 
@@ -554,7 +490,6 @@ class ErpController extends Controller
                 "sizeID"       => (int) ($l['sizeID'] ?? 0),
             ];
         }, $orderReceived['lines'] ?? []);
-
         
         // Enviar request
         try {
@@ -739,75 +674,107 @@ class ErpController extends Controller
             }
         }
     }
-public function getLastBuyConditions(string $itemId): ?array
-{
-    // 1) Buscar os 3 campos na ItemCostChange
-    $query1 = "
-        SELECT LastTransSerial, LastTransDocument, LastTransDocNumber
-        FROM dbo.ItemCostChange
-        WHERE ItemID = '{$itemId}'
-    ";
 
-    $res1 = \Illuminate\Support\Facades\Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
-            'Content-Type'  => 'application/json',
-        ])
-        ->withoutVerifying()
-        ->post($this->endpoint, ['query' => $query1]);
+    
+   public function getLastBuyConditions(string $itemId): ?array
+    {
+        $itemId  = trim($itemId);
+        $escaped = str_replace("'", "''", $itemId);
 
-    if (!$res1->successful() || empty($res1['data'][0])) {
-        return null;
+        /**
+         * 1) Buscar o ÚLTIMO detalhe de compra FCO / PV para este ItemID
+         */
+        $queryDetails = "
+            SELECT TOP 1
+                Units,
+                UnitPrice,
+                DiscountPercent,
+                TaxIncludedPrice
+            FROM dbo.BuyTransactionDetails
+            WHERE ItemID       = '{$escaped}'
+            AND TransSerial   = 'PV'
+            AND TransDocument = 'FCO'
+            ORDER BY
+                CreateDate     DESC,
+                TransDocNumber DESC,
+                LineItemID     DESC
+        ";
+
+        $resDetails = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->token,
+                'Content-Type'  => 'application/json',
+            ])
+            ->withoutVerifying()
+            ->post($this->endpoint, ['query' => $queryDetails]);
+
+        // Se não houver nenhum movimento de compra, não vale a pena continuar
+        if (!$resDetails->successful() || empty($resDetails['data'][0])) {
+            return null;
+        }
+
+        $row = $resDetails['data'][0];
+
+        $units                = $row['Units']            ?? null;
+        $unitPriceRaw         = $row['UnitPrice']        ?? null;
+        $discountPercentRaw   = $row['DiscountPercent']  ?? null;
+        $taxIncludedPriceRaw  = $row['TaxIncludedPrice'] ?? null;
+
+        /**
+         * 2) Perguntar ao fornecedor se o último doc foi com imposto incluído
+         *    (LastTransWasTaxIncluded: 0/1)
+         */
+        $queryTax = "
+            SELECT s.LastTransWasTaxIncluded
+            FROM dbo.Item i
+            JOIN dbo.Supplier s
+                ON s.SupplierID = i.SupplierID
+            WHERE i.ItemID = '{$escaped}'
+        ";
+
+        $resTax = \Illuminate\Support\Facades\Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->token,
+                'Content-Type'  => 'application/json',
+            ])
+            ->withoutVerifying()
+            ->post($this->endpoint, ['query' => $queryTax]);
+
+        $taxIncluded = false;
+
+        if ($resTax->successful() && !empty($resTax['data'][0])) {
+            // vem 0 ou 1 → força para int e depois compara
+            $flag        = (int) ($resTax['data'][0]['LastTransWasTaxIncluded'] ?? 0);
+            $taxIncluded = ($flag === 1);
+        }
+
+        /**
+         * 3) Escolher que preço devolver:
+         *    - se taxIncluded = true e houver TaxIncludedPrice → usa TaxIncludedPrice
+         *    - caso contrário → usa UnitPrice normal
+         */
+        if ($taxIncluded && $taxIncludedPriceRaw !== null) {
+            $unitPrice = (float) $taxIncludedPriceRaw;
+        } else {
+            $unitPrice = (float) ($unitPriceRaw ?? 0);
+        }
+
+        return [
+            'Units'                  => $units !== null ? (float) $units : null,
+            'UnitPrice'              => $unitPrice,
+            'DiscountPercent'        => $discountPercentRaw !== null ? (float) $discountPercentRaw : null,
+            'TransactionTaxIncluded' => $taxIncluded, // bool true/false, para usares no payload
+        ];
     }
 
-    // Usa a primeira linha devolvida
-    $serial    = $res1['data'][0]['LastTransSerial'];
-    $document  = $res1['data'][0]['LastTransDocument'];
-    $docNumber = $res1['data'][0]['LastTransDocNumber'];
 
-    // 2) Buscar Units, UnitPrice, DiscountPercent na BuyTransactionDetails
-    $query2 = "
-        SELECT Units, UnitPrice, DiscountPercent
-        FROM dbo.BuyTransactionDetails
-        WHERE ItemID = '{$itemId}'
-          AND TransSerial   = '{$serial}'
-          AND TransDocument = '{$document}'
-          AND TransDocNumber= '{$docNumber}'
-    ";
 
-    $res2 = \Illuminate\Support\Facades\Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->token,
-            'Content-Type'  => 'application/json',
-        ])
-        ->withoutVerifying()
-        ->post($this->endpoint, ['query' => $query2]);
+    public function lastBuyConditions(string $itemId)
+    {
+        $data = $this->getLastBuyConditions($itemId);
 
-    if (!$res2->successful() || empty($res2['data'][0])) {
-        return null;
+        return response()->json([
+            'success' => (bool) $data,
+            'data'    => $data,
+        ]);
     }
-        
-    // dd([
-    //     'status' => $res2->status(),
-    //     'body'   => $res2->body(),     // string JSON crua
-    //     'json'   => $res2->json(),     // array decodificado
-    // ]);
-
-    // Retorna exatamente os campos pedidos
-    return [
-        'Units'           => $res2['data'][0]['Units'],
-        'UnitPrice'       => $res2['data'][0]['UnitPrice'],
-        'DiscountPercent' => $res2['data'][0]['DiscountPercent'],
-    ];
-}
-
-
-public function lastBuyConditions(string $itemId)
-{
-    $data = $this->getLastBuyConditions($itemId);
-
-    return response()->json([
-        'success' => (bool) $data,
-        'data'    => $data,
-    ]);
-}
 
 }
