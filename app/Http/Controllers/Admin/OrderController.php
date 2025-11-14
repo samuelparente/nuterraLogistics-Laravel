@@ -73,32 +73,37 @@ class OrderController extends Controller
     }
 
     public function edit(Request $request)
-{
-    $order = Order::whereHas('status', fn ($q) => $q->where('code', 'pending'))
-        ->with(['items.brand.bonuses', 'items.supplier.bonuses'])
-        ->first();
+    {
+        $order = Order::whereHas('status', fn ($q) => $q->where('code', 'pending'))
+            ->with(['items.brand.bonuses', 'items.supplier.bonuses'])
+            ->first();
 
-    if (!$order) {
-        return redirect()->route('orders.index')->with('error', 'Nenhum pedido em aberto encontrado.');
+        if (!$order) {
+            return redirect()->route('orders.index')->with('error', 'Nenhum pedido em aberto encontrado.');
+        }
+
+        foreach ($order->items as $item) {
+            $brandBonuses = $item->brand?->bonuses ?? collect();
+            $supplierBonuses = $item->supplier?->bonuses ?? collect();
+
+            $allBonuses = $brandBonuses->merge($supplierBonuses)->unique('id');
+
+            // Adiciona uma propriedade 'Bonuses' no mesmo formato usado nas outras views
+            $item->Bonuses = $allBonuses->map(function ($b) {
+                return [
+                    'description' => $b->description ?? $b->name,
+                    'notes' => $b->notes ?? null,
+                ];
+            })->values()->all(); // Garante array limpo com índices numéricos
+        }
+
+        //definições de email
+        $settings = AppSetting::first();
+        $mailTo   = $settings?->toList()  ?? []; // Para:
+        $mailCc   = $settings?->ccList()  ?? []; // CC:
+        
+        return view('layouts.admin.orders.edit', compact('order', 'mailTo', 'mailCc'));
     }
-
-    foreach ($order->items as $item) {
-        $brandBonuses = $item->brand?->bonuses ?? collect();
-        $supplierBonuses = $item->supplier?->bonuses ?? collect();
-
-        $allBonuses = $brandBonuses->merge($supplierBonuses)->unique('id');
-
-        // 👉 Adiciona uma propriedade 'Bonuses' no mesmo formato usado nas outras views
-        $item->Bonuses = $allBonuses->map(function ($b) {
-            return [
-                'description' => $b->description ?? $b->name,
-                'notes' => $b->notes ?? null,
-            ];
-        })->values()->all(); // Garante array limpo com índices numéricos
-    }
-
-    return view('layouts.admin.orders.edit', compact('order'));
-}
 
 
     public function createEmpty(Request $request)
@@ -272,7 +277,36 @@ class OrderController extends Controller
         $validated = $request->validate([
             'quantities' => ['array'],
             'quantities.*' => ['required', 'integer', 'min:1'],
+            //destinatários
+            'mail_to'      => ['nullable', 'array'],
+            'mail_to.*'    => ['required', 'email'],
+            'mail_cc'      => ['nullable', 'array'],
+            'mail_cc.*'    => ['required', 'email'],
         ]);
+
+        // Preparar destinatários a partir do formulário
+        $to = collect($validated['mail_to'] ?? [])
+            ->filter()    // remove null / strings vazias
+            ->values()
+            ->all();
+
+        $cc = collect($validated['mail_cc'] ?? [])
+            ->filter()
+            ->values()
+            ->all();
+
+        // Se não há ninguém seleccionado
+        if (empty($to) && empty($cc)) {
+            return back()
+                ->withInput()
+                ->with('error', 'Seleccione pelo menos um destinatário (Para ou CC).');
+        }
+
+        // Se não há "Para", mas há CC → promove um CC para To
+        if (empty($to) && !empty($cc)) {
+            // passa o primeiro CC para To e deixa os restantes como CC
+            $to[] = array_shift($cc);
+        }
 
         // Atualizar quantidades (apenas itens deste pedido)
         foreach ($validated['quantities'] ?? [] as $itemId => $qty) {
@@ -358,32 +392,37 @@ class OrderController extends Controller
             ]);
         }
 
-        // Destinatários
-        $to = collect(json_decode($settings->notification_to ?? '[]', true))
-            ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->toArray();
+        // Destinatários todos
+        // $to = collect(json_decode($settings->notification_to ?? '[]', true))
+        //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+        //     ->values()
+        //     ->toArray();
 
-        $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
-            ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->toArray();
+        // $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
+        //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+        //     ->values()
+        //     ->toArray();
 
+        
         // Construir o resumo a ser enviado para a view
         $orderSummary = [
             'suppliers' => $suppliersSummary,
             'count'     => count($suppliersSummary),
         ];
 
-        // Enviar email (anexos + resumo; sem listar nomes no corpo)
+        // usar apenas os selecionados no formulário
         if (!empty($to)) {
-            Mail::to($to)
-                ->cc($cc)
-                ->send(new OrderFilesMail(
-                    attachments: $fileRecords,
-                    downloadLinks: [],              // deixamos vazio; os ficheiros estão em anexo
-                    orderSummary: $orderSummary     // <-- novo resumo para a view
-                ));
+            $mailer = Mail::to($to);
+
+            if (!empty($cc)) {
+                $mailer->cc($cc);
+            }
+
+            $mailer->send(new OrderFilesMail(
+                attachments: $fileRecords,
+                downloadLinks: [],
+                orderSummary: $orderSummary
+            ));
         }
 
         return redirect()

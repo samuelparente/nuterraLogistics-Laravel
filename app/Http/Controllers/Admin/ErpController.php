@@ -522,6 +522,11 @@ class ErpController extends Controller
         }
 
         // Montar payload final
+        //"transactionTaxIncluded" => false, tem de ser dinamico e de acordo com a fatura 
+        // para já vamos so verificar se o fornecedor era com tax ou nao
+        // futuramente validamos e recalculamos os produtos se fornecedor mudar de true para false e nao bater certo
+        // com o documento anterior
+
         $payload = [
             "clientID"               => $orderReceived['clientID']     ?? 20,
             "wharehouseID"           => $orderReceived['wharehouseID'] ?? 1,

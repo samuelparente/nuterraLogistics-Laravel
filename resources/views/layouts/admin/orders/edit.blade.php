@@ -37,111 +37,167 @@
 
         <!-- Tabela de Itens do Pedido -->
         
-            <div class="card">
-                <div class="card-header"><h5 class="card-title mb-0">Produtos</h5></div>
-                <div class="card-body table-responsive">
-                    <table class="table table-condensed table-hover align-middle table-bordered">
-                        <thead>
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Produtos</h5></div>
+            <div class="card-body table-responsive">
+                <table class="table table-condensed table-hover align-middle table-bordered">
+                    <thead>
+                        <tr>
+                            <th title="SKU"><i class="bi bi-hash table-icons"></i></th>
+                            <th title="Código Barras"><i class="bi bi-upc-scan table-icons"></i></th>
+                            <th title="Nome"><i class="bi bi-card-text table-icons"></i></th>
+                            <th title="Marca"><i class="bi bi-bookmark table-icons"></i></th>
+                            <th title="Fornecedor"><i class="bi bi-truck table-icons"></i></th>
+                            <th class="text-center" title="Bonificações"><i class="bi bi-gift table-icons"></i></th>
+                            <th title="Quantidade"><i class="bi bi-box-seam table-icons"></i></th>
+                            <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse ($order->items as $item)
                             <tr>
-                                <th title="SKU"><i class="bi bi-hash table-icons"></i></th>
-                                <th title="Código Barras"><i class="bi bi-upc-scan table-icons"></i></th>
-                                <th title="Nome"><i class="bi bi-card-text table-icons"></i></th>
-                                <th title="Marca"><i class="bi bi-bookmark table-icons"></i></th>
-                                <th title="Fornecedor"><i class="bi bi-truck table-icons"></i></th>
-                                <th class="text-center" title="Bonificações"><i class="bi bi-gift table-icons"></i></th>
-                                <th title="Quantidade"><i class="bi bi-box-seam table-icons"></i></th>
-                                <th class="text-center"><i class="bi bi-gear-fill table-icons" title="Ações"></i></th>
+                                <td><span class="badge bg-dark">{{ $item->product_sku }}</span></td>
+                                <td><span class="badge bg-dark">{{ $item->product_barcode }}</span></td>
+                                <td>{{ $item->product_name }}</td>
+                                <td>{{ $item->brand->name ?? '' }}</td>
+                                <td>{{ $item->supplier->name ?? '' }}</td>
+
+                                <td class="text-center">
+                                        @if (!empty($item->Bonuses) && collect($item->Bonuses)->isNotEmpty())
+                                            @php
+                                                $popoverId = 'popover-' . $loop->index;
+
+                                                $popoverHtml = collect($item['Bonuses'])->map(function ($bonus) {
+                                                    $desc = e($bonus['description'] ?? '');
+                                                    $notes = !empty($bonus['notes']) ? e($bonus['notes']) : null;
+
+                                                    return '<span class="badge bg-light text-dark d-block mb-1" style="font-size: 0.75rem;">'
+                                                        . $desc . ($notes ? ' — ' . $notes : '') .
+                                                        '</span>';
+                                                })->implode('');
+                                            @endphp
+
+                                            {{-- Botão para ativar popover --}}
+                                            <span
+                                                class="badge bg-success"
+                                                role="button"
+                                                tabindex="0"
+                                                data-bs-toggle="popover"
+                                                data-bs-trigger="focus"
+                                                data-bs-placement="top"
+                                                data-popover-content="{{ $popoverId }}"
+                                                data-bs-title="Bónus disponíveis"
+                                                data-bs-custom-class="custom-popover"
+                                            >
+                                                <i class="bi bi-gift-fill"></i>
+                                            </span>
+
+                                            {{-- Conteúdo escondido com o HTML real --}}
+                                            <div id="{{ $popoverId }}" class="d-none">
+                                                {!! $popoverHtml !!}
+                                            </div>
+                                        @endif
+
+                                    </td>
+                                <td>
+                                    <input type="number" 
+                                        name="quantities[{{ $item->id }}]" 
+                                        value="{{ $item->quantity }}" 
+                                        class="form-control form-control-sm text-end d-block ms-auto" 
+                                        style="width: 80px;" 
+                                        form="order-update-form" 
+                                        min="1">
+                                </td>
+
+                                <td class="text-center">
+                                    <a class="btn btn-sm btn-general btn-outline-danger" 
+                                        href="#" 
+                                        onclick="confirmDelete({{ $item->id }})" 
+                                        title="Eliminar Item">
+                                        <i class="bi bi-trash table-icon-remove"></i>
+                                    </a>
+                                    <form id="delete-form-{{ $item->id }}" 
+                                            action="{{ route('orders.order.order_item.destroy', $item->id) }}" 
+                                            method="POST" 
+                                            style="display: none;">
+                                        @csrf
+                                        @method('DELETE')
+                                    </form>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            @forelse ($order->items as $item)
-                                <tr>
-                                    <td><span class="badge bg-dark">{{ $item->product_sku }}</span></td>
-                                    <td><span class="badge bg-dark">{{ $item->product_barcode }}</span></td>
-                                    <td>{{ $item->product_name }}</td>
-                                    <td>{{ $item->brand->name ?? '' }}</td>
-                                    <td>{{ $item->supplier->name ?? '' }}</td>
-
-                                    <td class="text-center">
-                                            @if (!empty($item->Bonuses) && collect($item->Bonuses)->isNotEmpty())
-                                                @php
-                                                    $popoverId = 'popover-' . $loop->index;
-
-                                                    $popoverHtml = collect($item['Bonuses'])->map(function ($bonus) {
-                                                        $desc = e($bonus['description'] ?? '');
-                                                        $notes = !empty($bonus['notes']) ? e($bonus['notes']) : null;
-
-                                                        return '<span class="badge bg-light text-dark d-block mb-1" style="font-size: 0.75rem;">'
-                                                            . $desc . ($notes ? ' — ' . $notes : '') .
-                                                            '</span>';
-                                                    })->implode('');
-                                                @endphp
-
-                                                {{-- Botão para ativar popover --}}
-                                                <span
-                                                    class="badge bg-success"
-                                                    role="button"
-                                                    tabindex="0"
-                                                    data-bs-toggle="popover"
-                                                    data-bs-trigger="focus"
-                                                    data-bs-placement="top"
-                                                    data-popover-content="{{ $popoverId }}"
-                                                    data-bs-title="Bónus disponíveis"
-                                                    data-bs-custom-class="custom-popover"
-                                                >
-                                                    <i class="bi bi-gift-fill"></i>
-                                                </span>
-
-                                                {{-- Conteúdo escondido com o HTML real --}}
-                                                <div id="{{ $popoverId }}" class="d-none">
-                                                    {!! $popoverHtml !!}
-                                                </div>
-                                            @endif
-
-                                        </td>
-                                    <td>
-                                        <input type="number" 
-                                            name="quantities[{{ $item->id }}]" 
-                                            value="{{ $item->quantity }}" 
-                                            class="form-control form-control-sm text-end d-block ms-auto" 
-                                            style="width: 80px;" 
-                                            form="order-update-form" 
-                                            min="1">
-                                    </td>
-
-                                    <td class="text-center">
-                                        <a class="btn btn-sm btn-general btn-outline-danger" 
-                                            href="#" 
-                                            onclick="confirmDelete({{ $item->id }})" 
-                                            title="Eliminar Item">
-                                            <i class="bi bi-trash table-icon-remove"></i>
-                                        </a>
-                                        <form id="delete-form-{{ $item->id }}" 
-                                              action="{{ route('orders.order.order_item.destroy', $item->id) }}" 
-                                              method="POST" 
-                                              style="display: none;">
-                                            @csrf
-                                            @method('DELETE')
-                                        </form>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="text-center">Nenhum produto no pedido.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="text-center">Nenhum produto no pedido.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
-            <form method="POST" id="order-update-form" action="{{ route('orders.order.update', $order->id) }}">
-                @csrf
-                @method('PATCH')
+        </div>
+        <form method="POST" id="order-update-form" action="{{ route('orders.order.update', $order->id) }}">
+            @csrf
+            @method('PATCH')
 
-                <div class="text-start mt-3">
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-send-plus"></i> Enviar</button>
+            {{-- DESTINATÁRIOS DO EMAIL --}}
+            @if(!empty($mailTo) || !empty($mailCc))
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Destinatários do email</h5>
+                    </div>
+                    <div class="card-body">
+
+                        {{-- PARA: --}}
+                        @if(!empty($mailTo))
+                            <h6 class="mb-2">Para:</h6>
+                            @foreach($mailTo as $email)
+                                <div class="form-check mb-1">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        name="mail_to[]"
+                                        value="{{ $email }}"
+                                        id="mail_to_{{ $loop->index }}"
+                                        checked
+                                    >
+                                    <label class="form-check-label" for="mail_to_{{ $loop->index }}">
+                                        {{ $email }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        @endif
+
+                        {{-- CC: --}}
+                        @if(!empty($mailCc))
+                            <hr class="my-3">
+                            <h6 class="mb-2">CC:</h6>
+                            @foreach($mailCc as $email)
+                                <div class="form-check mb-1">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        name="mail_cc[]"
+                                        value="{{ $email }}"
+                                        id="mail_cc_{{ $loop->index }}"
+                                        checked
+                                    >
+                                    <label class="form-check-label" for="mail_cc_{{ $loop->index }}">
+                                        {{ $email }}
+                                    </label>
+                                </div>
+                            @endforeach
+                        @endif
+
+                    </div>
                 </div>
-            </form>
+            @endif
+
+            <div class="text-start mt-3">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-send-plus"></i> Enviar
+                </button>
+            </div>
+        </form>
+
     </div>
 </main>
 <script>
