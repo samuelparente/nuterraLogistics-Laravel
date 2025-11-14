@@ -358,11 +358,14 @@ class ReceivingController extends Controller
                         //     $price = (float) ($p['CostPrice'] ?? 0);
                         // }
 
-                        // NOVO:Preço e desconto desde a ultima fatura
+                        // NOVO:Preço e desconto desde a ultima fatura e se tem taxa incluida ou nao
                         $result = app(ErpController::class)->getLastBuyConditions($itemId);
+                        
                         $price = $result['UnitPrice'] ?? 0;
                         $DiscountPercent = $result['DiscountPercent'] ?? 0;
-
+                        $TransactionTaxIncluded = $result['TransactionTaxIncluded'] ?? false;
+                        
+                     
                         // Normalizar data (YYYY-MM-DD)
                         $validade = \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d');
 
@@ -389,13 +392,15 @@ class ReceivingController extends Controller
                     'clientID'               => (int) $supplierErpId,         // <- Supplier ERP ID
                     'wharehouseID'           => (int) $warehouseId,
                     'transDocument'          => (string) $transDocument,
-                    'transactionTaxIncluded' => false,
+                    'transactionTaxIncluded' => $TransactionTaxIncluded,
                     'comments'               => $receiving->notes ?? 'Entrada finalizada via plataforma NUTERRA | Logistics',
                     'lines'                  => $lines,
                 ];
 
                 if ($paymentId) $orderReceived['paymentID'] = (int) $paymentId;
                 if ($tenderId)  $orderReceived['tenderID']  = (int) $tenderId;
+
+                //dd($orderReceived);
 
                 // Enviar
                 $erpController = new ErpController();
