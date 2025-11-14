@@ -444,10 +444,10 @@ class ErpController extends Controller
     {
 
         // Endpoint testes
-        $url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
+        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
 
         // Endpoint producao
-        //$url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
+        $url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
 
         /**
     
