@@ -20,6 +20,8 @@ class WooController extends Controller
             'tax_group_id'  => 'nullable|in:1,2,3', // 1=Normal, 2=Intermédia, 3=Reduzida
         ]);
 
+        dd($request);
+        
         $created = $this->createFromArray($data);
         return response()->json($created, 201);
     }
@@ -62,12 +64,23 @@ class WooController extends Controller
             $data['tax_class'] = $taxClass; // ex.: 'intermediate-rate' | 'reduced-rate'
         }
 
-        // Meta: barcode
-        if (!empty($payload['barcode'])) {
+        // ---- GTIN / Código de barras ----
+        $gtin = $payload['barcode'] ?? null;
+
+        if (!empty($gtin)) {
             $data['meta_data'] = [
-                ['key' => 'barcode', 'value' => $payload['barcode']],
+                // GTIN do plugin principal
+                ['key' => 'hwp_product_gtin', 'value' => $gtin],
+
+                // KuantoKusta
+                ['key' => '_kuantokusta_ean', 'value' => $gtin],
+
+                // Trusted Shops
+                ['key' => '_ts_gtin', 'value' => $gtin],
             ];
         }
+        // -------------------------------
+
 
         $response = Http::withBasicAuth(
                 config('services.woocommerce.key'),
