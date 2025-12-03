@@ -19,6 +19,11 @@ use App\Models\Admin\AppSetting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ReceivingFinalizedMail;
 use Illuminate\Support\Facades\Redirect;
+use App\Exports\ReceivingExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 
 class ReceivingController extends Controller
@@ -467,6 +472,28 @@ class ReceivingController extends Controller
                     ],
                 ];
 
+                // ===== Gerar ficheiro Excel com lotes + validades desta receção =====
+
+                //  relações carregadas
+                $receiving->loadMissing(['supplier', 'items.brand', 'items.batches']);
+
+                // Pasta por mês, por ex.: receivings/2025_12
+                $folder = 'receivings/' . Carbon::now()->format('Y_m');
+
+                if (!Storage::disk('public')->exists($folder)) {
+                    Storage::disk('public')->makeDirectory($folder);
+                }
+
+                $supplierSlug = Str::slug($receiving->supplier?->name ?? 'fornecedor', '_');
+                $date = Carbon::now()->format('Y-m-d');
+                $filename = "rececao_{$supplierSlug}_{$date}_{$receiving->id}.xlsx";
+
+                $filePath = "{$folder}/{$filename}"; // caminho relativo no disk 'public'
+
+                // Cria o Excel
+                Excel::store(new ReceivingExport($receiving), $filePath, 'public');
+                    
+
                 $settings = AppSetting::first();
                 if ($settings) {
                     config([
@@ -495,14 +522,21 @@ class ReceivingController extends Controller
                 
                 // Enviar email
                 try {
-                    Mail::to($to)->cc($cc)->send(new ReceivingFinalizedMail($summary, $divergences, $newItems));
+                    Mail::to($to)
+                        ->cc($cc)
+                        ->send(new ReceivingFinalizedMail(
+                            $summary,
+                            $divergences,
+                            $newItems,
+                            $filePath   // o caminho do Excel
+                        ));
                 } catch (\Throwable $mailEx) {
-                    // Não bloquear o fluxo se o email falhar; registra para debug
                     \Log::error('Falha no envio de email de receção concluída', [
                         'receiving_id' => $receiving->id,
-                        'error' => $mailEx->getMessage(),
+                        'error'        => $mailEx->getMessage(),
                     ]);
                 }
+
 
             } catch (\Throwable $e) {
                 return back()->with('error', 'Falha ao criar documento no ERP: ' . $e->getMessage());
