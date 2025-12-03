@@ -346,13 +346,9 @@ class ErpController extends Controller
     // Insere novo produto no erp
     public function erpCreateProduct(array $product): array
     {
-        // Endpoint testes
-        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/Artigos';
+        $url = config('sage.url_artigos');
 
-        // Endpoint producao
-        $url = 'http://nuterra.dyndns.biz:45248/sage/api/Artigos';
-
-        // 🔒 Validação antes de enviar para o ERP
+        //Validação antes de enviar para o ERP
         $validator = Validator::make($product, [
             'ShortDescription' => 'nullable|string|max:49',
         ], [
@@ -443,11 +439,7 @@ class ErpController extends Controller
     public function erpInsertDocument(array $orderReceived = []): array
     {
 
-        // Endpoint testes
-        //$url = 'http://nuterra.dyndns.biz:45248/testes/api/DocumentoVenda';
-
-        // Endpoint producao
-        $url = 'http://nuterra.dyndns.biz:45248/sage/api/DocumentoVenda';
+        $url = config('sage.url_docs_venda');
 
         /**
     
