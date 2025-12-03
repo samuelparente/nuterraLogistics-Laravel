@@ -29,7 +29,7 @@
 
             <div class="row">
                 {{-- Card SMTP --}}
-                <div class="col-lg-6">
+                <div class="col-lg-4">
                     <div class="card mb-4">
                         <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-envelope-fill me-2"></i> SMTP</h5></div>
                         <div class="card-body">
@@ -66,7 +66,7 @@
                 </div>
 
                 {{-- Card Envio --}}
-                <div class="col-lg-6">
+                <div class="col-lg-4">
                     <div class="card mb-4">
                         <div class="card-header"><h5 class="card-title mb-0"><i class="bi bi-send-fill me-2"></i> Informações de Envio</h5></div>
                         <div class="card-body">
@@ -109,8 +109,54 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- Card Avisos de Validade --}}
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i> Avisos de Validade de Lotes
+                            </h5>
+                        </div>
+                        <div class="card-body">
+
+                            <div class="mb-3">
+                                <label for="expiry_alert_days_login" class="form-label">
+                                    Mostrar aviso no login quando faltarem (dias)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="3650"
+                                    name="expiry_alert_days_login"
+                                    id="expiry_alert_days_login"
+                                    class="form-control"
+                                    value="{{ old('expiry_alert_days_login', $settings->expiry_alert_days_login ?? 180) }}"
+                                >
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="expiry_alert_days_email" class="form-label">
+                                    Aviso diário por email quando faltarem (dias)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="3650"
+                                    name="expiry_alert_days_email"
+                                    id="expiry_alert_days_email"
+                                    class="form-control"
+                                    value="{{ old('expiry_alert_days_email', $settings->expiry_alert_days_email ?? 180) }}"
+                                >
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
+            
             {{-- Botão Guardar --}}
             <div class="mt-4 text-end">
                 <button type="submit" class="btn btn-primary">

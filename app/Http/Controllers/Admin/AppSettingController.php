@@ -13,7 +13,7 @@ class AppSettingController extends Controller
     {
         $settings = AppSetting::firstOrCreate([]);
 
-        // Garantir pelo menos 5 inputs em cada lista (com valores vazios se necessário)
+        // Garantir pelo menos 5 inputs em cada lista
         $settings->notification_to = array_pad(
             json_decode($settings->notification_to ?? '[]', true),
             5,
@@ -41,11 +41,15 @@ class AppSettingController extends Controller
                 'smtp_encryption' => 'nullable|string|max:10',
                 'smtp_from_address' => 'nullable|email',
                 'smtp_from_name' => 'nullable|string|max:255',
+
                 'notification_to' => 'required|array',
                 'notification_to.0' => 'required|email',
                 'notification_to.*' => 'nullable|email',
                 'notification_cc' => 'nullable|array',
                 'notification_cc.*' => 'nullable|email',
+
+                'expiry_alert_days_login' => 'nullable|integer|min:1|max:3650',
+                'expiry_alert_days_email' => 'nullable|integer|min:1|max:3650',
             ]);
 
 
@@ -62,6 +66,8 @@ class AppSettingController extends Controller
                 'notification_to' => json_encode(array_filter($validated['notification_to'] ?? [])),
                 'notification_cc' => json_encode(array_filter($validated['notification_cc'] ?? [])),
 
+                'expiry_alert_days_login' => $validated['expiry_alert_days_login'] ?? null,
+                'expiry_alert_days_email' => $validated['expiry_alert_days_email'] ?? null,
             ]);
 
             return redirect()
@@ -73,5 +79,4 @@ class AppSettingController extends Controller
                 ->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
         }
     }
-
 }

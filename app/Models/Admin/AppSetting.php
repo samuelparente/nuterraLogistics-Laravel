@@ -3,6 +3,7 @@
 namespace App\Models\Admin;
 
 use Illuminate\Database\Eloquent\Model;
+
 class AppSetting extends Model
 {
     protected $table = 'app_settings';
@@ -17,11 +18,15 @@ class AppSetting extends Model
         'smtp_from_name',
         'notification_to',
         'notification_cc',
+        'expiry_alert_days_login',
+        'expiry_alert_days_email',
     ];
 
     protected $casts = [
-        'notification_to' => 'array',
-        'notification_cc' => 'array',
+        'notification_to'         => 'array',
+        'notification_cc'         => 'array',
+        'expiry_alert_days_login' => 'integer',
+        'expiry_alert_days_email' => 'integer',
     ];
 
     public $timestamps = true;
@@ -103,5 +108,18 @@ class AppSetting extends Model
         }
 
         return [];
+    }
+
+    // ===== Helpers novos para dias de validade =====
+
+    public function expiryDaysForLogin(): int
+    {
+        // fallback 180 dias se por algum motivo estiver null
+        return $this->expiry_alert_days_login ?: 180;
+    }
+
+    public function expiryDaysForEmail(): int
+    {
+        return $this->expiry_alert_days_email ?: 180;
     }
 }
