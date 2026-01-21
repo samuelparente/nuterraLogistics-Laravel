@@ -220,6 +220,7 @@ class ErpController extends Controller
         // TaxableGroupID =1 Iva a 23 Taxa normal
         // TaxableGroupID = 2 Iva taxa intermédia 13%
         // TaxableGroupID= 3 Iva reduzido 6%
+        // TaxableGroupID= 4 sem taxa
 
         $value = trim($value);
         $escaped = str_replace("'", "''", $value);
@@ -356,13 +357,22 @@ class ErpController extends Controller
         ]);
 
         if ($validator->fails()) {
-            // ❌ Retorna erro consistente com o resto do método
+            //  Retorna erro consistente com o resto do método
             return [
                 'success' => false,
                 'status'  => 422,
                 'error'   => $validator->errors()->first('ShortDescription'),
                 'payload' => $product,
             ];
+        }
+
+        // Se for em USD, converter o preço de custo para EUR
+        if (isset($product['moedaId']) && strtoupper($product['moedaId']) === 'USD') {
+            $taxaCambio = isset($product['taxaCambio']) && is_numeric($product['taxaCambio']) && $product['taxaCambio'] > 0
+                ? (float) $product['taxaCambio']
+                : 1.0;
+
+            $product['pc'] = round(((float) $product['pc']) * $taxaCambio, 12);
         }
 
         // Montar payload com base no $product
@@ -394,7 +404,7 @@ class ErpController extends Controller
             "ProductCategory" => 1, // Define M - Mercadoria
         ];
 
-        
+        dd($payload);
         // Enviar request
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -454,7 +464,10 @@ class ErpController extends Controller
         // para já vamos so verificar se o ultimo doc era com tax ou nao
         // futuramente validamos e recalculamos os produtos se fornecedor mudar de true para false e nao bater certo
         // com o documento anterior
-
+        //21-01-2025:
+        // mesmo que tenha taxa e agora decidir que não, o valor que prevalece em prioridade e o checkbox na finalização
+        // da entrada de mercadorias
+        
         $payload = [
             "clientID"               => $orderReceived['clientID']     ?? 20,
             "wharehouseID"           => $orderReceived['wharehouseID'] ?? 1,

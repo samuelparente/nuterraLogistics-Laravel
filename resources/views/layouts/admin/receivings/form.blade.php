@@ -242,12 +242,70 @@
                         </div>
                     @endif
 
-                    {{-- Notas --}}
-                    <div class="mb-3">
-                        <label for="notes" class="form-label">Notas</label>
-                        <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Notas</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <!-- <label for="notes" class="form-label">Notas</label> -->
+                                <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
+                            </div>
+                        </div>
                     </div>
 
+                    {{-- Checkbox de incluir impostos --}}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">Impostos do documento</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input
+                                        class="form-check-input"
+                                        type="radio"
+                                        name="modo_insercao"
+                                        id="modo_anterior"
+                                        value="anterior"
+                                        checked
+                                        required
+                                    >
+                                    <label class="form-check-label" for="modo_anterior">
+                                        Usar definição de fatura anterior
+                                    </label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input
+                                        class="form-check-input"
+                                        type="radio"
+                                        name="modo_insercao"
+                                        id="modo_com_impostos"
+                                        value="com_impostos"
+                                    >
+                                    <label class="form-check-label" for="modo_com_impostos">
+                                        Inserir com impostos
+                                    </label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input
+                                        class="form-check-input"
+                                        type="radio"
+                                        name="modo_insercao"
+                                        id="modo_sem_impostos"
+                                        value="sem_impostos"
+                                    >
+                                    <label class="form-check-label" for="modo_sem_impostos">
+                                        Inserir sem impostos
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                 
                     {{-- Ações --}}
                     <div class="d-flex gap-2">
                         {{-- Guardar (POST para store) --}}

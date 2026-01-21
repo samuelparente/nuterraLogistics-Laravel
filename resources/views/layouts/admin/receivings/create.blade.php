@@ -64,13 +64,24 @@
 
                             <label class="mt-3">Preço de Custo</label>
                             <input type="number" step="0.001" name="pc" class="form-control" required>
+                            
+                            <label for="moeda_id" class="form-label mt-3">Moeda</label>
+                            <select name="moedaId" id="moeda_id" class="form-select" required>
+                                <option value="" disabled selected>Selecione...</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                            </select>
 
-                            <label for="taxable_group_id" class="form-label mt-3">Taxa de IVA</label>
+                            <label class="mt-3">Taxa de câmbio para EUR</label>
+                            <input type="number" step="0.000000000001" value="1" name="taxaCambio" class="form-control" required>
+
+                            <label for="taxable_group_id" class="form-label mt-3">Taxa de IVA - Venda</label>
                             <select name="TaxableGroupID" id="taxable_group_id" class="form-select" required>
                                 <option value="" disabled selected>Selecione...</option>
                                 <option value="1">Taxa Normal - 23%</option>
                                 <option value="2">Taxa Intermédia - 13%</option>
                                 <option value="3">Taxa Reduzida - 6%</option>
+                                <option value="4">Taxa Isenta - 0%</option>
                             </select>
 
                             <label for="supplier_id" class="form-label mt-3">Fornecedor</label>

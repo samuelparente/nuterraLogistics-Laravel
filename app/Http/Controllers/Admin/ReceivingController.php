@@ -246,6 +246,8 @@ class ReceivingController extends Controller
             'mail_to.*'  => ['required', 'email'],
             'mail_cc'    => ['nullable', 'array'],
             'mail_cc.*'  => ['required', 'email'],
+            'modo_insercao' => ['required', 'in:anterior,com_impostos,sem_impostos'],
+
         ]);
 
         $receiving = Receiving::where('order_id', $order->id)
@@ -368,8 +370,22 @@ class ReceivingController extends Controller
                         // NOVO:Preço e desconto desde a ultima fatura e se tem taxa incluida ou nao
                         $result = app(ErpController::class)->getLastBuyConditions($itemId);
                         
-                        $price = $result['UnitPrice'] ?? 0;
-                        $DiscountPercent = $result['DiscountPercent'] ?? 0;
+                        // Se não encontrar, fallback ao preço de custo do produto no ERP
+                        if (empty($result)) {
+                            $p = $erp->getProductBySkuOrBarcode($itemId);
+                            $price = (float) ($p['CostPrice'] ?? 0);
+                            $DiscountPercent = 0;
+                            $TransactionTaxIncluded = false;
+                        } else {
+                            // Usa o resultado encontrado
+                            $price = (float) ($result['UnitPrice'] ?? 0);
+                            $DiscountPercent = (float) ($result['DiscountPercent'] ?? 0);
+                        }
+
+                        //$price = $result['UnitPrice'] ?? 0;
+                        //$DiscountPercent = $result['DiscountPercent'] ?? 0;
+                        
+                        //Taxa incluida?
                         $TransactionTaxIncluded = $result['TransactionTaxIncluded'] ?? false;
                         
                      
@@ -392,6 +408,18 @@ class ReceivingController extends Controller
 
                 if (empty($lines)) {
                     throw new \Exception('Nenhuma linha para enviar ao ERP (sem lotes válidos).');
+                }
+
+                // Modo de inserção (impostos incluídos ou não)
+                $modoInsercao = $validated['modo_insercao'] ?? 'anterior';
+
+                if ($modoInsercao === 'com_impostos') {
+                    $TransactionTaxIncluded = true;
+                } elseif ($modoInsercao === 'sem_impostos') {
+                    $TransactionTaxIncluded = false;
+                } else {
+                    // anterior -> mantém o que já tinha calculado pelo "último doc"
+                    // já está definido acima
                 }
 
                 // Payload final
@@ -827,6 +855,8 @@ class ReceivingController extends Controller
             $product['UnitOfSaleID'] = "UNI";
             $product['TaxableGroupID'] = $request['TaxableGroupID'];
             $product['pc'] = !empty($request['pc']) ? $request['pc'] : 0;
+            $product['moedaId'] = $request['moedaId'];
+            $product['taxaCambio'] = $request['taxaCambio'];
             $product['SupplierID'] = $supplierErpId;
             $product['FamilyID'] = $brandErpId;
 
