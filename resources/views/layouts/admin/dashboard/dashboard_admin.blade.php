@@ -59,15 +59,26 @@
             <div class="col-12 col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body d-flex flex-column justify-content-center text-center">
-                        <div class="mb-3 text-danger">
+                        <div class="mb-3 text-secondary">
                             <i data-feather="percent" class="taxonomy-icons" style="width:48px; height:48px;"></i>
                             <h5 class="card-title mt-2 mb-1">Bonificações</h5>
                         </div>
-                        <a href="{{ route('bonuses.index') }}" class="btn btn-sm btn-outline-danger col-6 mx-auto">Aceder</a>
+                        <a href="{{ route('bonuses.index') }}" class="btn btn-sm btn-outline-secondary col-6 mx-auto">Aceder</a>
                     </div>
                 </div>
             </div>
-
+            <!-- Validades -->
+            <div class="col-12 col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column justify-content-center text-center">
+                        <div class="mb-3 text-danger">
+                            <i data-feather="alert-triangle" class="taxonomy-icons" style="width:48px; height:48px;"></i>
+                            <h5 class="card-title mt-2 mb-1">Validades</h5>
+                        </div>
+                        <a href="{{ route('batchesexpirydates.index') }}" class="btn btn-sm btn-outline-danger col-6 mx-auto">Aceder</a>
+                    </div>
+                </div>
+            </div>
             <!-- Configurações -->
              @hasanyrole('admin|super-admin')
                 <div class="col-12 col-md-4 mb-4">

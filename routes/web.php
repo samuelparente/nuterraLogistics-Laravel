@@ -7,10 +7,13 @@ use App\Http\Controllers\Admin\ReceivingController;
 use App\Http\Controllers\Admin\ListController;
 use App\Http\Controllers\Admin\ErpController;
 use App\Http\Controllers\Admin\AppSettingController;
+use App\Http\Controllers\Admin\BatchExpiryDatesController;
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Admin\Auth\RegisteredUserController;
 use Illuminate\Support\Facades\Auth;
+
 
 
 // Rotas login
@@ -27,6 +30,7 @@ Route::middleware('auth')->group(function () {
     //Debug
  Route::get('/backoffice/test-pcu/{itemId}', [ErpController::class, 'lastBuyConditions'])
         ->name('erp.lastBuyConditions');
+
     // Painel admin dashboard
     Route::get('/backoffice/dashboard', function () {
         return view('layouts.admin.dashboard.dashboard_admin', ['user' => Auth::user()]);
@@ -83,6 +87,30 @@ Route::middleware('auth')->group(function () {
             // Eliminar 
             Route::delete('{bonus}', [BonusController::class, 'destroy'])->name('bonus.destroy');
         });
+
+    });
+
+    // Validades
+    Route::prefix('/backoffice/batchesexpirydates')->name('batchesexpirydates.')->group(function () {
+
+        // Apenas super-admin, admin e gestor podem aceder
+        Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
+            
+            // Ver todos
+            Route::get('index', [BatchExpiryDatesController::class, 'index'])->name('index');
+
+        });
+
+    });
+
+    // Alerts (top bar) — FORA do grupo acima
+    Route::middleware(['role:super-admin|admin|gestor'])->group(function () {
+
+        Route::get('/backoffice/alerts/expiry/count', [BatchExpiryDatesController::class, 'countAlert'])
+            ->name('alerts.expiry.count');
+
+        Route::post('/backoffice/alerts/expiry/hide', [BatchExpiryDatesController::class, 'hideAlert'])
+            ->name('alerts.expiry.hide');
 
     });
 

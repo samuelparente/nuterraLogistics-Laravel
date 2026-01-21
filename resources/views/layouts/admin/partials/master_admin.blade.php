@@ -46,6 +46,8 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body>
+    @include('layouts.admin.partials.expiry_alert_bar')
+
     <div class="wrapper">
         <nav id="sidebar" class="sidebar js-sidebar">
             <div class="sidebar-content js-simplebar">

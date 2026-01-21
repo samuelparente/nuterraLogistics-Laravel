@@ -37,7 +37,12 @@ return [
         ['label' => 'Perfil', 'route' => 'profiles.profile.show', 'icon' => 'bi-person-circle', 'params' => ['user']],
         ['label' => 'Editar Perfil', 'route' => null, 'icon' => 'bi-pencil'],
     ],
-
+    // Validades / Lotes
+    'batchesexpirydates.index' => [
+        ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
+        ['label' => 'Validades', 'route' => null, 'icon' => 'bi-box-seam'],
+        ['label' => 'Ver Todas', 'route' => null, 'icon' => 'bi-calendar-x'],
+    ],
     // Bonuses
     'bonuses.index' => [
         ['label' => 'Backoffice', 'route' => 'backoffice.dashboard', 'icon' => 'bi-house-door'],
