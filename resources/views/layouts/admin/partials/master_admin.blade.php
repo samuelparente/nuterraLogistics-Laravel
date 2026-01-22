@@ -95,6 +95,13 @@
                             <span class="align-middle">Bonificações</span>
                         </a>
                     </li> 
+                    {{-- Validades --}}
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" href="{{ route('batchesexpirydates.index') }}">
+                            <i class="align-middle menu-icons-color" data-feather="alert-triangle"></i>
+                            <span class="align-middle">Validades</span>
+                        </a>
+                    </li> 
                     {{-- definiçoes --}}
                     @hasanyrole('admin|super-admin')
                     <li class="sidebar-item">
