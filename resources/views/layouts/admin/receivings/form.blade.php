@@ -189,123 +189,153 @@
                     <input type="hidden" name="order_id" value="{{ $order->id }}">
                     <input type="hidden" name="supplier_id" value="{{ $supplier->id }}">
 
-                    {{-- Destinatários do email de receção finalizada --}}
-                    @if(!empty($mailTo) || !empty($mailCc))
-                        <div class="card mb-3">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">Destinatários do email</h5>
-                            </div>
-                            <div class="card-body">
+                    <div class="row">
+                        <div class="col-12 col-lg-4">
+                            {{-- Destinatários do email de receção finalizada --}}
+                            @if(!empty($mailTo) || !empty($mailCc))
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">Destinatários do email</h5>
+                                    </div>
+                                    <div class="card-body">
 
-                                {{-- PARA: --}}
-                                @if(!empty($mailTo))
-                                    <h6 class="mb-2">Para:</h6>
-                                    @foreach($mailTo as $email)
-                                        <div class="form-check mb-1">
+                                        {{-- PARA: --}}
+                                        @if(!empty($mailTo))
+                                            <h6 class="mb-2">Para:</h6>
+                                            @foreach($mailTo as $email)
+                                                <div class="form-check mb-1">
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="checkbox"
+                                                        name="mail_to[]"
+                                                        value="{{ $email }}"
+                                                        id="mail_to_{{ $loop->index }}"
+                                                        checked
+                                                    >
+                                                    <label class="form-check-label" for="mail_to_{{ $loop->index }}">
+                                                        {{ $email }}
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        @endif
+
+                                        {{-- CC: --}}
+                                        @if(!empty($mailCc))
+                                            <hr class="my-3">
+                                            <h6 class="mb-2">CC:</h6>
+                                            @foreach($mailCc as $email)
+                                                <div class="form-check mb-1">
+                                                    <input
+                                                        class="form-check-input"
+                                                        type="checkbox"
+                                                        name="mail_cc[]"
+                                                        value="{{ $email }}"
+                                                        id="mail_cc_{{ $loop->index }}"
+                                                        checked
+                                                    >
+                                                    <label class="form-check-label" for="mail_cc_{{ $loop->index }}">
+                                                        {{ $email }}
+                                                    </label>
+                                                </div>
+                                            @endforeach
+                                        @endif
+
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="col-12 col-lg-8">
+                            {{-- Notas --}}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Notas</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <!-- <label for="notes" class="form-label">Notas</label> -->
+                                        <textarea name="notes" id="notes" class="form-control" rows="8">{{ $receiving->notes ?? '' }}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>    
+                     </div>
+                
+                    <div class="row">
+                        <div class="col-12 col-lg-6">
+                            {{-- Checkbox de incluir impostos --}}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Impostos do documento</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <div class="form-check">
                                             <input
                                                 class="form-check-input"
-                                                type="checkbox"
-                                                name="mail_to[]"
-                                                value="{{ $email }}"
-                                                id="mail_to_{{ $loop->index }}"
+                                                type="radio"
+                                                name="modo_insercao"
+                                                id="modo_anterior"
+                                                value="anterior"
                                                 checked
+                                                required
                                             >
-                                            <label class="form-check-label" for="mail_to_{{ $loop->index }}">
-                                                {{ $email }}
+                                            <label class="form-check-label" for="modo_anterior">
+                                                Usar definição de fatura anterior
                                             </label>
                                         </div>
-                                    @endforeach
-                                @endif
 
-                                {{-- CC: --}}
-                                @if(!empty($mailCc))
-                                    <hr class="my-3">
-                                    <h6 class="mb-2">CC:</h6>
-                                    @foreach($mailCc as $email)
-                                        <div class="form-check mb-1">
+                                        <div class="form-check">
                                             <input
                                                 class="form-check-input"
-                                                type="checkbox"
-                                                name="mail_cc[]"
-                                                value="{{ $email }}"
-                                                id="mail_cc_{{ $loop->index }}"
-                                                checked
+                                                type="radio"
+                                                name="modo_insercao"
+                                                id="modo_com_impostos"
+                                                value="com_impostos"
                                             >
-                                            <label class="form-check-label" for="mail_cc_{{ $loop->index }}">
-                                                {{ $email }}
+                                            <label class="form-check-label" for="modo_com_impostos">
+                                                Inserir com impostos
                                             </label>
                                         </div>
-                                    @endforeach
-                                @endif
 
-                            </div>
-                        </div>
-                    @endif
-
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Notas</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <!-- <label for="notes" class="form-label">Notas</label> -->
-                                <textarea name="notes" id="notes" class="form-control" rows="3">{{ $receiving->notes ?? '' }}</textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Checkbox de incluir impostos --}}
-                    <div class="card mb-3">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">Impostos do documento</h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input
-                                        class="form-check-input"
-                                        type="radio"
-                                        name="modo_insercao"
-                                        id="modo_anterior"
-                                        value="anterior"
-                                        checked
-                                        required
-                                    >
-                                    <label class="form-check-label" for="modo_anterior">
-                                        Usar definição de fatura anterior
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input
-                                        class="form-check-input"
-                                        type="radio"
-                                        name="modo_insercao"
-                                        id="modo_com_impostos"
-                                        value="com_impostos"
-                                    >
-                                    <label class="form-check-label" for="modo_com_impostos">
-                                        Inserir com impostos
-                                    </label>
-                                </div>
-
-                                <div class="form-check">
-                                    <input
-                                        class="form-check-input"
-                                        type="radio"
-                                        name="modo_insercao"
-                                        id="modo_sem_impostos"
-                                        value="sem_impostos"
-                                    >
-                                    <label class="form-check-label" for="modo_sem_impostos">
-                                        Inserir sem impostos
-                                    </label>
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="radio"
+                                                name="modo_insercao"
+                                                id="modo_sem_impostos"
+                                                value="sem_impostos"
+                                            >
+                                            <label class="form-check-label" for="modo_sem_impostos">
+                                                Inserir sem impostos
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        <div class="col-12 col-lg-6">
+                            {{--cambio --}}
+                            <div class="card mb-3">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">Origem</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="moeda_id" class="form-label">Moeda</label>
+                                        <select name="moedaId" id="moeda_id" class="form-select" required>
+                                            <option value="" disabled selected>Selecione...</option>
+                                            <option value="EUR">EUR</option>
+                                            <option value="USD">USD</option>
+                                        </select>
 
-                 
+                                        <label class="mt-3">Taxa de câmbio para EUR</label>
+                                        <input type="number" step="0.000000000001" value="1" name="taxaCambio" class="form-control" required>
+                                    </div>
+                                </div>
+                            </div>   
+                        </div>    
+                    </div>    
+
                     {{-- Ações --}}
                     <div class="d-flex gap-2">
                         {{-- Guardar (POST para store) --}}

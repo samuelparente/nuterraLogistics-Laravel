@@ -240,15 +240,27 @@ class ReceivingController extends Controller
 
     public function finalize(Request $request, Order $order, Supplier $supplier)
     {
-         $validated = $request->validate([
-            'notes'      => 'nullable|string|max:1000',
-            'mail_to'    => ['nullable', 'array'],
-            'mail_to.*'  => ['required', 'email'],
-            'mail_cc'    => ['nullable', 'array'],
-            'mail_cc.*'  => ['required', 'email'],
-            'modo_insercao' => ['required', 'in:anterior,com_impostos,sem_impostos'],
+        $validated = $request->validate([
+            'notes'          => 'nullable|string|max:1000',
 
+            'mail_to'        => ['nullable', 'array'],
+            'mail_to.*'      => ['required', 'email'],
+
+            'mail_cc'        => ['nullable', 'array'],
+            'mail_cc.*'      => ['required', 'email'],
+
+            'modo_insercao'  => ['required', 'in:anterior,com_impostos,sem_impostos'],
+
+            'moedaId'        => ['required', 'in:EUR,USD'],
+
+            'taxaCambio' => [
+                'required_if:moedaId,USD',
+                'numeric',
+                'gt:0',
+                'regex:/^\d+(\.\d{1,12})?$/',
+            ],
         ]);
+
 
         $receiving = Receiving::where('order_id', $order->id)
             ->where('supplier_id', $supplier->id)
