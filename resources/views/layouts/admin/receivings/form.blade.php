@@ -57,6 +57,14 @@
       'breadcrumbs' => config('breadcrumbs')[Route::currentRouteName()] ?? []
     ])
 
+    @if (in_array($receiving->erp_submission_status, ['submitting', 'uncertain'], true))
+        <div class="alert alert-warning mt-3">
+            <strong>Receção bloqueada.</strong>
+            Existe uma submissão Sage em curso ou com resultado incerto. Não repita nem altere a receção;
+            confirme primeiro o documento no Sage e contacte o suporte se necessário.
+        </div>
+    @endif
+
   
         <div class="card">
             <div class="card-header"><h5 class="card-title mb-0">Produtos Recebidos</h5></div>
@@ -184,10 +192,16 @@
                
 
                 {{-- Formulário de receção --}}
-                <form method="POST" action="{{ route('receivings.store', ['order' => $order->id, 'supplier' => $supplier->id]) }}">
+                <form
+                    id="receiving-finalization-form"
+                    method="POST"
+                    action="{{ route('receivings.store', ['order' => $order->id, 'supplier' => $supplier->id]) }}"
+                    data-no-loader
+                >
                     @csrf
                     <input type="hidden" name="order_id" value="{{ $order->id }}">
                     <input type="hidden" name="supplier_id" value="{{ $supplier->id }}">
+                    <input type="hidden" name="preview_token" id="preview_token" value="">
 
                     <div class="row">
                         <div class="col-12 col-lg-4">
@@ -276,7 +290,7 @@
                                                 name="modo_insercao"
                                                 id="modo_anterior"
                                                 value="anterior"
-                                                checked
+                                                @checked(old('modo_insercao', 'anterior') === 'anterior')
                                                 required
                                             >
                                             <label class="form-check-label" for="modo_anterior">
@@ -291,6 +305,7 @@
                                                 name="modo_insercao"
                                                 id="modo_com_impostos"
                                                 value="com_impostos"
+                                                @checked(old('modo_insercao') === 'com_impostos')
                                             >
                                             <label class="form-check-label" for="modo_com_impostos">
                                                 Inserir com impostos
@@ -304,6 +319,7 @@
                                                 name="modo_insercao"
                                                 id="modo_sem_impostos"
                                                 value="sem_impostos"
+                                                @checked(old('modo_insercao') === 'sem_impostos')
                                             >
                                             <label class="form-check-label" for="modo_sem_impostos">
                                                 Inserir sem impostos
@@ -317,19 +333,30 @@
                             {{--cambio --}}
                             <div class="card mb-3">
                                 <div class="card-header">
-                                    <h5 class="card-title mb-0">Origem</h5>
+                                    <h5 class="card-title mb-0">Moeda da receção</h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="mb-3">
                                         <label for="moeda_id" class="form-label">Moeda</label>
                                         <select name="moedaId" id="moeda_id" class="form-select" required>
-                                            <option value="" disabled selected>Selecione...</option>
-                                            <option value="EUR">EUR</option>
-                                            <option value="USD">USD</option>
+                                            <option value="EUR" @selected(old('moedaId', $receiving->fx_currency ?? 'EUR') === 'EUR')>EUR</option>
+                                            <option value="USD" @selected(old('moedaId', $receiving->fx_currency ?? 'EUR') === 'USD')>USD</option>
                                         </select>
 
-                                        <label class="mt-3">Taxa de câmbio para EUR</label>
-                                        <input type="number" step="0.000000000001" value="1" name="taxaCambio" class="form-control" required>
+                                        <label for="taxa_cambio" class="mt-3 form-label">Taxa de câmbio</label>
+                                        <input
+                                            id="taxa_cambio"
+                                            type="number"
+                                            step="0.000000000001"
+                                            min="0.000000000001"
+                                            value="{{ old('taxaCambio', $receiving->fx_rate_to_eur ?? '1.000000000000') }}"
+                                            name="taxaCambio"
+                                            class="form-control"
+                                            required
+                                        >
+                                        <div id="taxa_cambio_help" class="form-text">
+                                            Para USD: 1 USD = taxa indicada em EUR.
+                                        </div>
                                     </div>
                                 </div>
                             </div>   
@@ -345,14 +372,71 @@
                             <i class="bi bi-floppy"></i> Guardar
                         </button>
 
-                        {{-- Finalizar (POST para finalize) --}}
-                        <button type="submit"
-                                formaction="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}"
-                                class="btn btn-primary">
-                            <i class="bi bi-check2-circle"></i> Finalizar
+                        {{-- Pré-visualizar antes de criar o documento Sage --}}
+                        <button
+                            type="button"
+                            id="btn-preview-receiving"
+                            class="btn btn-primary"
+                            data-preview-url="{{ route('receivings.preview', [$order->id, $supplier->id]) }}"
+                            data-finalize-url="{{ route('receivings.finalize', [$order->id, $supplier->id]) }}"
+                        >
+                            <i class="bi bi-eye"></i> Pré-visualizar finalização
                         </button>
                     </div>
                 </form>
+
+                <div
+                    class="modal fade"
+                    id="receiving-preview-modal"
+                    tabindex="-1"
+                    aria-labelledby="receiving-preview-title"
+                    aria-hidden="true"
+                >
+                    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <div>
+                                    <h5 class="modal-title" id="receiving-preview-title">
+                                        Pré-visualização do documento Sage
+                                    </h5>
+                                    <div id="preview-header-meta" class="small text-muted mt-1"></div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info py-2">
+                                    O Sage calculará descontos, impostos e totais. Confirme abaixo os preços em EUR que serão enviados.
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle">
+                                        <thead>
+                                            <tr>
+                                                <th>SKU / Produto</th>
+                                                <th class="text-end">Qtd.</th>
+                                                <th class="text-end">Último preço Sage</th>
+                                                <th class="text-end">Taxa anterior</th>
+                                                <th class="text-end">Nova taxa</th>
+                                                <th class="text-end">Preço a enviar</th>
+                                                <th class="text-end">Desconto</th>
+                                                <th>Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="preview-products-body"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                    Cancelar e corrigir
+                                </button>
+                                <button type="button" class="btn btn-primary" id="btn-confirm-receiving">
+                                    <i class="bi bi-check2-circle"></i> Confirmar e inserir no Sage
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
         </div>
@@ -361,9 +445,187 @@
 <script>
     const csrfToken = '{{ csrf_token() }}';
 
-    // $(function () {
-    // $('[data-toggle="tooltip"]').tooltip()
-    // })
+    (() => {
+        const form = document.getElementById('receiving-finalization-form');
+        const currencyInput = document.getElementById('moeda_id');
+        const rateInput = document.getElementById('taxa_cambio');
+        const rateHelp = document.getElementById('taxa_cambio_help');
+        const previewButton = document.getElementById('btn-preview-receiving');
+        const confirmButton = document.getElementById('btn-confirm-receiving');
+        const previewToken = document.getElementById('preview_token');
+        const previewBody = document.getElementById('preview-products-body');
+        const previewMeta = document.getElementById('preview-header-meta');
+        const modalElement = document.getElementById('receiving-preview-modal');
+
+        const escapeHtml = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+
+        const showError = (message) => {
+            if (typeof window.showInfoSwal === 'function') {
+                window.showInfoSwal('Não foi possível preparar a receção', escapeHtml(message));
+                return;
+            }
+
+            window.alert(message);
+        };
+
+        const formatPrice = (value) => {
+            if (value === null || value === undefined || value === '') return '—';
+
+            return Number(value).toLocaleString('pt-PT', {
+                minimumFractionDigits: 5,
+                maximumFractionDigits: 6,
+            }) + ' EUR';
+        };
+
+        const invalidatePreview = () => {
+            previewToken.value = '';
+        };
+
+        const syncCurrency = (clearUsdRate = false) => {
+            if (currencyInput.value === 'EUR') {
+                rateInput.value = '1.000000000000';
+                rateInput.readOnly = true;
+                rateHelp.textContent = 'Receções em EUR não têm conversão cambial.';
+            } else {
+                rateInput.readOnly = false;
+
+                if (clearUsdRate && Number(rateInput.value) === 1) {
+                    rateInput.value = '';
+                }
+
+                rateHelp.textContent = 'Introduza a taxa manual: 1 USD = taxa indicada em EUR.';
+            }
+
+            invalidatePreview();
+        };
+
+        const appendCell = (row, text, className = '') => {
+            const cell = document.createElement('td');
+            cell.textContent = text;
+            cell.className = className;
+            row.appendChild(cell);
+            return cell;
+        };
+
+        const renderPreview = (preview) => {
+            previewBody.replaceChildren();
+            previewMeta.textContent = [
+                `Fornecedor: ${preview.supplier.name}`,
+                `Receção #${preview.receiving_id}`,
+                `Moeda: ${preview.currency}`,
+                preview.currency === 'USD' ? `1 USD = ${preview.rate} EUR` : 'Sem conversão cambial',
+                `${preview.line_count} linha(s) por lote`,
+            ].join(' | ');
+
+            preview.items.forEach((item) => {
+                const row = document.createElement('tr');
+                const productCell = appendCell(row, '');
+
+                const sku = document.createElement('strong');
+                sku.textContent = item.sku;
+                productCell.appendChild(sku);
+                productCell.appendChild(document.createElement('br'));
+                productCell.appendChild(document.createTextNode(item.name));
+
+                appendCell(row, String(item.quantity), 'text-end');
+                appendCell(row, formatPrice(item.last_price_eur), 'text-end text-nowrap');
+                appendCell(
+                    row,
+                    item.previous_rate ? `${item.previous_rate} (${item.previous_currency})` : '—',
+                    'text-end text-nowrap'
+                );
+                appendCell(
+                    row,
+                    preview.currency === 'USD' ? preview.rate : '1.000000000000',
+                    'text-end text-nowrap'
+                );
+                appendCell(row, formatPrice(item.final_price_eur), 'text-end text-nowrap fw-semibold');
+                appendCell(
+                    row,
+                    item.discount_percent === null ? '—' : `${item.discount_percent}%`,
+                    'text-end text-nowrap'
+                );
+
+                const statusCell = appendCell(row, '');
+                const badge = document.createElement('span');
+                badge.className = `badge bg-${item.status_class}`;
+                badge.textContent = item.status_label;
+                statusCell.appendChild(badge);
+
+                const formula = document.createElement('div');
+                formula.className = 'small text-muted mt-1';
+                formula.textContent = item.formula;
+                statusCell.appendChild(formula);
+
+                previewBody.appendChild(row);
+            });
+        };
+
+        currencyInput.addEventListener('change', () => syncCurrency(true));
+        rateInput.addEventListener('input', invalidatePreview);
+        form.querySelectorAll('input[name="modo_insercao"]').forEach((input) => {
+            input.addEventListener('change', invalidatePreview);
+        });
+
+        previewButton.addEventListener('click', async () => {
+            if (! form.reportValidity()) return;
+
+            const originalHtml = previewButton.innerHTML;
+            previewButton.disabled = true;
+            previewButton.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> A calcular...';
+
+            try {
+                const response = await fetch(previewButton.dataset.previewUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: new FormData(form),
+                });
+
+                const data = await response.json();
+
+                if (! response.ok || ! data.success) {
+                    throw new Error(data.message || 'Não foi possível calcular os preços.');
+                }
+
+                previewToken.value = data.token;
+                renderPreview(data.preview);
+                window.bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            } catch (error) {
+                showError(error.message || 'Ocorreu um erro inesperado.');
+            } finally {
+                previewButton.disabled = false;
+                previewButton.innerHTML = originalHtml;
+            }
+        });
+
+        confirmButton.addEventListener('click', () => {
+            if (! previewToken.value) {
+                showError('A pré-visualização expirou. Gere uma nova.');
+                return;
+            }
+
+            confirmButton.disabled = true;
+            window.bootstrap.Modal.getInstance(modalElement)?.hide();
+            form.action = previewButton.dataset.finalizeUrl;
+
+            if (typeof window.showLoadingSwal === 'function') {
+                window.showLoadingSwal('A inserir no Sage...', 'Não feche esta página.');
+            }
+
+            form.submit();
+        });
+
+        syncCurrency(false);
+    })();
 </script>
 
 

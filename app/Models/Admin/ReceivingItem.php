@@ -22,12 +22,21 @@ class ReceivingItem extends Model
         'brand_id',
         'ordered_qty',
         'received_qty',
+        'fx_currency',
+        'fx_rate_to_eur',
+        'fx_rate_at',
+        'fx_source_unit_price',
+        'fx_unit_price_eur',
         'notes',
         'is_new', 
     ];
 
      protected $casts = [
-        'is_new' => 'boolean', 
+        'is_new' => 'boolean',
+        'fx_rate_to_eur' => 'decimal:12',
+        'fx_rate_at' => 'datetime',
+        'fx_source_unit_price' => 'decimal:6',
+        'fx_unit_price_eur' => 'decimal:6',
     ];
 
     public function receiving()

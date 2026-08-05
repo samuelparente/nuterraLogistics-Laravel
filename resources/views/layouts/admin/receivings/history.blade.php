@@ -37,6 +37,8 @@
                                         <th><i class="bi bi-hash table-icons" title="ID"></i></th>
                                         <th><i class="bi bi-calendar-check table-icons" title="Finalizado em"></i></th>
                                         <th><i class="bi bi-truck table-icons" title="Fornecedor"></i></th>
+                                        <th><i class="bi bi-currency-exchange table-icons" title="Moeda e taxa de câmbio"></i></th>
+                                        <th><i class="bi bi-receipt table-icons" title="Documento Sage"></i></th>
                                         <th><i class="bi bi-box-seam table-icons" title="Marcas"></i></th>
                                         <th><i class="bi bi-sticky table-icons" title="Notas"></i></th>
                                         <th><i class="bi bi-flag table-icons" title="Divergências"></i></th>
@@ -49,6 +51,17 @@
                                             <td>{{ $receiving->id }}</td>
                                             <td>{{ $receiving->received_at?->format('d/m/Y H:i') }}</td>
                                             <td>{{ $receiving->supplier?->name }}</td>
+                                            <td class="text-nowrap">
+                                                <strong>{{ $receiving->fx_currency ?? 'EUR' }}</strong>
+                                                @if (($receiving->fx_currency ?? 'EUR') === 'USD')
+                                                    <div class="small text-muted">
+                                                        1 USD = {{ $receiving->fx_rate_to_eur }} EUR
+                                                    </div>
+                                                @else
+                                                    <div class="small text-muted">Sem conversão</div>
+                                                @endif
+                                            </td>
+                                            <td>{{ $receiving->erp_document_reference ?: '—' }}</td>
                                             
                                             {{-- Marcas --}}
                                             <td>
@@ -99,7 +112,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7" class="text-center">Nenhuma entrada de mercadorias finalizada encontrada.</td>
+                                            <td colspan="9" class="text-center">Nenhuma entrada de mercadorias finalizada encontrada.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>

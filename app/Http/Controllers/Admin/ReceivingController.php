@@ -7,23 +7,22 @@ use App\Http\Controllers\Admin\ErpController;
 use App\Models\Admin\Supplier;
 use App\Models\Admin\Brand;
 use App\Models\Admin\Order;
-use App\Models\Admin\OrderItem;
 use App\Models\Admin\Receiving;
 use App\Models\Admin\ReceivingItem;
 use App\Models\Admin\ReceivingBatch;
 use App\Http\Controllers\Admin\WooController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use App\Models\Admin\AppSetting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ReceivingFinalizedMail;
-use Illuminate\Support\Facades\Redirect;
 use App\Exports\ReceivingExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
+use App\Services\Receiving\ReceivingFxCalculator;
+use App\Services\Receiving\ReceivingPreviewService;
 
 
 class ReceivingController extends Controller
@@ -214,13 +213,32 @@ class ReceivingController extends Controller
     {
         $validated = $request->validate([
             'notes' => 'nullable|string|max:1000',
+            'moedaId' => ['required', 'in:EUR,USD'],
+            'taxaCambio' => [
+                'required_if:moedaId,USD',
+                'nullable',
+                'numeric',
+                'gt:0',
+                'regex:/^\d+(?:\.\d{1,12})?$/',
+            ],
         ]);
 
         $receiving = Receiving::where('order_id', $order->id)
             ->where('supplier_id', $supplier->id)
             ->firstOrFail();
 
-        DB::transaction(function () use ($receiving, $validated) {
+        if ($this->isErpLocked($receiving)) {
+            return back()->withErrors([
+                'receiving' => 'Esta receção já foi enviada ou encontra-se em validação no Sage.',
+            ]);
+        }
+
+        $rate = app(ReceivingFxCalculator::class)->normalizeRate(
+            $validated['taxaCambio'] ?? null,
+            $validated['moedaId']
+        );
+
+        DB::transaction(function () use ($receiving, $validated, $rate) {
             foreach ($receiving->items as $item) {
                 $totalQty = $item->batches()->sum('quantity');
                 $item->update([
@@ -230,6 +248,11 @@ class ReceivingController extends Controller
 
             $receiving->update([
                 'notes' => $validated['notes'] ?? null,
+                'fx_currency' => $validated['moedaId'],
+                'fx_rate_to_eur' => $rate,
+                'fx_preview' => null,
+                'fx_preview_token' => null,
+                'fx_previewed_at' => null,
             ]);
         });
 
@@ -238,360 +261,333 @@ class ReceivingController extends Controller
             ->with('success', 'Progresso guardado.');
     }
 
-    public function finalize(Request $request, Order $order, Supplier $supplier)
-    {
+    public function preview(
+        Request $request,
+        Order $order,
+        Supplier $supplier,
+        ReceivingPreviewService $previewService,
+    ) {
         $validated = $request->validate([
-            'notes'          => 'nullable|string|max:1000',
-
-            'mail_to'        => ['nullable', 'array'],
-            'mail_to.*'      => ['required', 'email'],
-
-            'mail_cc'        => ['nullable', 'array'],
-            'mail_cc.*'      => ['required', 'email'],
-
-            'modo_insercao'  => ['required', 'in:anterior,com_impostos,sem_impostos'],
-
-            'moedaId'        => ['required', 'in:EUR,USD'],
-
+            'modo_insercao' => ['required', 'in:anterior,com_impostos,sem_impostos'],
+            'moedaId' => ['required', 'in:EUR,USD'],
             'taxaCambio' => [
                 'required_if:moedaId,USD',
+                'nullable',
                 'numeric',
                 'gt:0',
                 'regex:/^\d+(\.\d{1,12})?$/',
             ],
         ]);
 
+        $receiving = Receiving::where('order_id', $order->id)
+            ->where('supplier_id', $supplier->id)
+            ->firstOrFail();
+
+        if (! $receiving->supplier?->erp_id) {
+            return response()->json([
+                'message' => 'Fornecedor sem ERP ID. Associe o fornecedor ao Sage antes de finalizar.',
+            ], 422);
+        }
+
+        if (in_array($receiving->erp_submission_status, ['submitting', 'uncertain'], true)) {
+            return response()->json([
+                'message' => 'Esta receção tem uma submissão Sage em validação e não pode ser recalculada.',
+            ], 409);
+        }
+
+        try {
+            $snapshot = $previewService->build(
+                $receiving,
+                $validated['moedaId'],
+                $validated['taxaCambio'] ?? null,
+                $validated['modo_insercao'],
+                (int) config('erp.default_warehouse_id', 1),
+            );
+
+            $token = (string) Str::uuid();
+
+            $receiving->update([
+                'fx_currency' => $snapshot['currency'],
+                'fx_rate_to_eur' => $snapshot['rate'],
+                'fx_preview' => $snapshot,
+                'fx_preview_token' => $token,
+                'fx_previewed_at' => now(),
+                'erp_submission_status' => 'pending',
+                'erp_submission_key' => $receiving->erp_submission_key ?: (string) Str::uuid(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'token' => $token,
+                'preview' => [
+                    'supplier' => $snapshot['supplier'],
+                    'receiving_id' => $snapshot['receiving_id'],
+                    'order_id' => $snapshot['order_id'],
+                    'currency' => $snapshot['currency'],
+                    'rate' => $snapshot['rate'],
+                    'product_count' => $snapshot['product_count'],
+                    'line_count' => $snapshot['line_count'],
+                    'transaction_tax_included' => $snapshot['transaction_tax_included'],
+                    'items' => $snapshot['items'],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => $e->getMessage() ?: 'Não foi possível preparar a pré-visualização.',
+            ], 422);
+        }
+    }
+
+    public function finalize(
+        Request $request,
+        Order $order,
+        Supplier $supplier,
+        ReceivingPreviewService $previewService,
+        ReceivingFxCalculator $fxCalculator,
+    ) {
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'mail_to' => ['nullable', 'array'],
+            'mail_to.*' => ['required', 'email'],
+            'mail_cc' => ['nullable', 'array'],
+            'mail_cc.*' => ['required', 'email'],
+            'modo_insercao' => ['required', 'in:anterior,com_impostos,sem_impostos'],
+            'moedaId' => ['required', 'in:EUR,USD'],
+            'taxaCambio' => [
+                'required_if:moedaId,USD',
+                'nullable',
+                'numeric',
+                'gt:0',
+                'regex:/^\d+(\.\d{1,12})?$/',
+            ],
+            'preview_token' => ['required', 'uuid'],
+        ]);
+
+        $to = collect($validated['mail_to'] ?? [])->filter()->values()->all();
+        $cc = collect($validated['mail_cc'] ?? [])->filter()->values()->all();
+
+        if ($to === [] && $cc === []) {
+            return back()->withInput()->with(
+                'error',
+                'Seleccione pelo menos um destinatário (Para ou CC).'
+            );
+        }
+
+        if ($to === [] && $cc !== []) {
+            $to[] = array_shift($cc);
+        }
 
         $receiving = Receiving::where('order_id', $order->id)
             ->where('supplier_id', $supplier->id)
             ->firstOrFail();
 
-        // Preparar destinatários a partir do formulário
-        $to = collect($validated['mail_to'] ?? [])
-            ->filter()
-            ->values()
-            ->all();
+        $sageAccepted = false;
 
-        $cc = collect($validated['mail_cc'] ?? [])
-            ->filter()
-            ->values()
-            ->all();
-
-        // Se não há ninguém seleccionado
-        if (empty($to) && empty($cc)) {
-            return back()
-                ->withInput()
-                ->with('error', 'Seleccione pelo menos um destinatário (Para ou CC).');
-        }
-
-        // Se não há "Para" mas há CC → promove um CC para To
-        if (empty($to) && !empty($cc)) {
-            $to[] = array_shift($cc); // primeiro CC vai para Para:
-        }
-        
         try {
-            DB::transaction(function () use ($receiving, $validated) {
-                foreach ($receiving->items as $item) {
-                    $totalQty = $item->batches()->sum('quantity');
+            $submission = DB::transaction(function () use (
+                $receiving,
+                $validated,
+                $previewService,
+                $fxCalculator,
+            ) {
+                $locked = Receiving::whereKey($receiving->id)->lockForUpdate()->firstOrFail();
 
-                    // Validação: lote obrigatório com quantidade
-                    if ($totalQty < 0) {
-                        throw new \Exception("Sem lote e quantidade no item '{$item->product_name}'. Entrada não finalizada.");
-                    }
-
-                    $item->update([
-                        'received_qty' => $totalQty,
-                    ]);
+                if ($locked->received_at !== null || $locked->erp_submission_status === 'submitted') {
+                    throw new \RuntimeException(
+                        'Esta receção já foi inserida no Sage'
+                        . ($locked->erp_document_reference ? " ({$locked->erp_document_reference})" : '')
+                        . '.'
+                    );
                 }
 
-                $receiving->update([
-                    'notes' => $validated['notes'] ?? null,
-                    'received_at' => now(),
-                    'received_by' => auth()->id(),
-                    'status_id' => 5, // finalizado/arquivado receining individual
+                if (in_array($locked->erp_submission_status, ['submitting', 'uncertain'], true)) {
+                    throw new \RuntimeException(
+                        'Já existe uma submissão Sage em curso ou por confirmar para esta receção.'
+                    );
+                }
+
+                if (! hash_equals((string) $locked->fx_preview_token, $validated['preview_token'])) {
+                    throw new \RuntimeException('A pré-visualização expirou. Gere uma nova antes de finalizar.');
+                }
+
+                $snapshot = $locked->fx_preview;
+
+                if (! is_array($snapshot) || empty($snapshot['lines'])) {
+                    throw new \RuntimeException('A pré-visualização guardada é inválida. Gere uma nova.');
+                }
+
+                $submittedRate = $fxCalculator->normalizeRate(
+                    $validated['taxaCambio'] ?? null,
+                    $validated['moedaId'],
+                );
+
+                if (
+                    ($snapshot['currency'] ?? null) !== $validated['moedaId']
+                    || ($snapshot['rate'] ?? null) !== $submittedRate
+                    || ($snapshot['tax_mode'] ?? null) !== $validated['modo_insercao']
+                ) {
+                    throw new \RuntimeException(
+                        'A moeda, taxa ou modo de impostos mudou. Gere uma nova pré-visualização.'
+                    );
+                }
+
+                $previewService->assertSnapshotStillMatches($locked, $snapshot);
+
+                $submissionKey = $locked->erp_submission_key ?: (string) Str::uuid();
+
+                $locked->update([
+                    'erp_submission_status' => 'submitting',
+                    'erp_submission_key' => $submissionKey,
                 ]);
 
-                // Verifica se todos os receivings da mesma order estão finalizados e marca essa order como finalizada
-                $allFinalized = Receiving::where('order_id', $receiving->order_id)
-                    ->whereNull('deleted_at') // ignora os eliminados
-                    ->whereNull('received_at') // ainda não finalizados
+                return [
+                    'snapshot' => $snapshot,
+                    'submission_key' => $submissionKey,
+                ];
+            });
+
+            $receiving->load('supplier');
+            $supplierErpId = $receiving->supplier?->erp_id;
+
+            if (! $supplierErpId) {
+                throw new \RuntimeException('Fornecedor sem ERP ID. Associe o fornecedor ao Sage.');
+            }
+
+            $transDocument = (string) config('erp.docs.entry', 'FGR');
+            $transSerial = (string) config('erp.docs.entry_series', 'PV');
+            $warehouseId = (int) config('erp.default_warehouse_id', 1);
+            $salesmanId = (int) config('erp.default_salesman_id', 1);
+
+            $erp = app(ErpController::class);
+            $supplierDefaults = $erp->getSupplierDocumentDefaults((int) $supplierErpId);
+            $paymentId = (int) ($supplierDefaults['paymentID'] ?? config('erp.default_payment_id') ?? 0);
+            $tenderId = (int) ($supplierDefaults['tenderID'] ?? config('erp.default_tender_id') ?? 0);
+
+            if ($transSerial === '' || $warehouseId <= 0 || $salesmanId <= 0) {
+                throw new \RuntimeException('Configuração Sage incompleta: confirme série, vendedor e armazém.');
+            }
+
+            if ($paymentId <= 0 || $tenderId <= 0) {
+                throw new \RuntimeException(
+                    "Não foi possível obter o pagamento ou meio de pagamento do fornecedor Sage {$supplierErpId}."
+                );
+            }
+
+            $snapshot = $submission['snapshot'];
+            $orderReceived = [
+                'clientID' => (int) $supplierErpId,
+                'salesmanID' => $salesmanId,
+                'paymentID' => $paymentId,
+                'tenderID' => $tenderId,
+                'transSerial' => $transSerial,
+                'wharehouseID' => $warehouseId,
+                'transDocument' => $transDocument,
+                'transactionTaxIncluded' => (bool) $snapshot['transaction_tax_included'],
+                'contractReferenceNumber' => 'NUTERRA-RECEIVING-' . $receiving->id
+                    . '-' . $submission['submission_key'],
+                'comments' => $validated['notes']
+                    ?? $receiving->notes
+                    ?? 'Entrada finalizada via plataforma NUTERRA | Logistics',
+                'lines' => $snapshot['lines'],
+            ];
+
+            $result = $erp->erpInsertDocument($orderReceived);
+
+            if (! ($result['success'] ?? false)) {
+                $httpStatus = (int) ($result['status'] ?? 0);
+                $status = $httpStatus === 0 || $httpStatus >= 500
+                    ? 'uncertain'
+                    : 'failed';
+
+                $receiving->update([
+                    'erp_submission_status' => $status,
+                    'erp_response' => $result,
+                ]);
+
+                $message = $status === 'uncertain'
+                    ? 'A resposta do Sage é inconclusiva. Confirme no ERP antes de repetir a operação.'
+                    : 'Sage: ' . ($result['error'] ?? 'Falha ao inserir o documento.');
+
+                throw new \RuntimeException($message);
+            }
+
+            $sageAccepted = true;
+
+            // Regista primeiro a confirmação externa. Se o processo terminar
+            // antes da consolidação local, a operação fica bloqueada para não
+            // criar um segundo documento no Sage.
+            $receiving->update([
+                'erp_submission_status' => 'uncertain',
+                'erp_document_reference' => $this->erpDocumentReference($result),
+                'erp_response' => $result,
+                'erp_submitted_at' => now(),
+            ]);
+
+            DB::transaction(function () use ($receiving, $validated, $snapshot, $result) {
+                $locked = Receiving::whereKey($receiving->id)->lockForUpdate()->firstOrFail();
+
+                foreach ($snapshot['item_snapshots'] as $itemId => $itemSnapshot) {
+                    ReceivingItem::where('receiving_id', $locked->id)
+                        ->whereKey((int) $itemId)
+                        ->update([
+                            'received_qty' => (int) $itemSnapshot['received_qty'],
+                            'fx_currency' => $itemSnapshot['currency'],
+                            'fx_rate_to_eur' => $itemSnapshot['rate'],
+                            'fx_source_unit_price' => $itemSnapshot['source_unit_price'],
+                            'fx_unit_price_eur' => $itemSnapshot['unit_price_eur'],
+                        ]);
+                }
+
+                $locked->update([
+                    'notes' => $validated['notes'] ?? null,
+                    'fx_currency' => $snapshot['currency'],
+                    'fx_rate_to_eur' => $snapshot['rate'],
+                    'received_at' => now(),
+                    'received_by' => auth()->id(),
+                    'status_id' => 5,
+                    'erp_submission_status' => 'submitted',
+                    'erp_document_reference' => $this->erpDocumentReference($result),
+                    'erp_response' => $result,
+                    'erp_submitted_at' => now(),
+                ]);
+
+                $allFinalized = Receiving::where('order_id', $locked->order_id)
+                    ->whereNull('deleted_at')
+                    ->whereNull('received_at')
                     ->doesntExist();
 
                 if ($allFinalized) {
-                    Order::where('id', $receiving->order_id)
-                        ->update(['status_id' => 5]); // arquivado
+                    Order::whereKey($locked->order_id)->update(['status_id' => 5]);
                 }
-
-
             });
 
-            // Aqui fica a chamada de inserir o documento no ERP
-            try {
-                // Recarregar com relações necessárias
-                $receiving->load([
-                    'supplier',                // precisa do erp_id
-                    'items.batches',           // 1 linha por lote
-                    'items.orderItem',         // tentar obter preço
-                ]);
-
-                // Validar erp_id do fornecedor
-                $supplierErpId = $receiving->supplier?->erp_id;
-                if (!$supplierErpId) {
-                    throw new \Exception('Fornecedor sem ERP ID (erp_id). Associe o erp_id ao fornecedor antes de finalizar.');
-                }
-
-                // Configs/fallbacks
-                $transDocument = config('erp.docs.entry', 'FGR');               // sigla do doc de ENTRADA
-                $warehouseId   = config('erp.default_warehouse_id', 1);
-                $paymentId     = config('erp.default_payment_id');              // opcional
-                $tenderId      = config('erp.default_tender_id');               // opcional
-
-                // Montar linhas a partir dos lotes
-                $lines = [];
-                $erp = new ErpController();
-
-                foreach ($receiving->items as $item) {
-                    // SKU ERP = assumimos product_sku
-                    $itemId = $item->product_sku;
-
-                    // Tentar preço a partir do OrderItem (se existir esse campo). 
-                    $priceFromOrder = null;
-                    if ($item->relationLoaded('orderItem') && $item->orderItem) {
-                        // tenta várias colunas comuns
-                        $priceFromOrder = $item->orderItem->unit_price
-                            ?? $item->orderItem->price
-                            ?? $item->orderItem->cost_price
-                            ?? null;
-                    }
-
-                    foreach ($item->batches as $batch) {
-                        $qty = (float) $batch->quantity;
-
-                        //Se a quantidade for 0 (ou negativa), ignora o lote
-                        if ($qty <= 0) {
-                            continue;
-                        }
-                        
-                        // Determinar preço (fallback ao ERP se necessário)
-                        // $price = $priceFromOrder;
-                        // if ($price === null) {
-                        //     $p = $erp->getProductBySkuOrBarcode($itemId);
-                        //     $price = (float) ($p['CostPrice'] ?? 0);
-                        // }
-
-                        // NOVO:Preço e desconto desde a ultima fatura e se tem taxa incluida ou nao
-                        $result = app(ErpController::class)->getLastBuyConditions($itemId);
-                        
-                        // Se não encontrar, fallback ao preço de custo do produto no ERP
-                        if (empty($result)) {
-                            $p = $erp->getProductBySkuOrBarcode($itemId);
-                            $price = (float) ($p['CostPrice'] ?? 0);
-                            $DiscountPercent = 0;
-                            $TransactionTaxIncluded = false;
-                        } else {
-                            // Usa o resultado encontrado
-                            $price = (float) ($result['UnitPrice'] ?? 0);
-                            $DiscountPercent = (float) ($result['DiscountPercent'] ?? 0);
-                        }
-
-                        //$price = $result['UnitPrice'] ?? 0;
-                        //$DiscountPercent = $result['DiscountPercent'] ?? 0;
-                        
-                        //Taxa incluida?
-                        $TransactionTaxIncluded = $result['TransactionTaxIncluded'] ?? false;
-                        
-                     
-                        // Normalizar data (YYYY-MM-DD)
-                        $validade = \Carbon\Carbon::parse($batch->expiry_date)->format('Y-m-d');
-
-                        $lines[] = [
-                            'itemID'       => $itemId,
-                            'quantity'     => $qty,
-                            'price'        => (float) $price,
-                            'DiscountPercent'     => (float) $DiscountPercent,
-                            'unitOfSaleID' => 'UNI',
-                            'propriedade1' => (string) $batch->batch_number,
-                            'validade1'    => $validade,
-                            'colorID'      => 0,
-                            'sizeID'       => 0,
-                        ];
-                    }
-                }
-
-                if (empty($lines)) {
-                    throw new \Exception('Nenhuma linha para enviar ao ERP (sem lotes válidos).');
-                }
-
-                // Modo de inserção (impostos incluídos ou não)
-                $modoInsercao = $validated['modo_insercao'] ?? 'anterior';
-
-                if ($modoInsercao === 'com_impostos') {
-                    $TransactionTaxIncluded = true;
-                } elseif ($modoInsercao === 'sem_impostos') {
-                    $TransactionTaxIncluded = false;
-                } else {
-                    // anterior -> mantém o que já tinha calculado pelo "último doc"
-                    // já está definido acima
-                }
-
-                // Payload final
-                $orderReceived = [
-                    'clientID'               => (int) $supplierErpId,         // <- Supplier ERP ID
-                    'wharehouseID'           => (int) $warehouseId,
-                    'transDocument'          => (string) $transDocument,
-                    'transactionTaxIncluded' => $TransactionTaxIncluded,
-                    'comments'               => $receiving->notes ?? 'Entrada finalizada via plataforma NUTERRA | Logistics',
-                    'lines'                  => $lines,
-                ];
-
-                if ($paymentId) $orderReceived['paymentID'] = (int) $paymentId;
-                if ($tenderId)  $orderReceived['tenderID']  = (int) $tenderId;
-
-                //dd($orderReceived);
-
-                // Enviar
-                $erpController = new ErpController();
-                $result = $erpController->erpInsertDocument($orderReceived);
-
-                if (!($result['success'] ?? false)) {
-                    throw new \Exception('ERP: ' . ($result['error'] ?? 'Falha a inserir documento.'));
-                }
-
-                // Envia mail de resumo
-                $receiving->load(['supplier', 'items.brand']);
-
-                $brands = $receiving->items
-                    ->pluck('brand.name')
-                    ->filter()
-                    ->unique()
-                    ->values()
-                    ->toArray();
-
-                // Divergências: itens do pedido cujo recebido difere do encomendado
-                $divergences = $receiving->items
-                    ->filter(function ($i) {
-                        return $i->order_item_id !== null && (int)$i->ordered_qty !== (int)$i->received_qty;
-                    })
-                    ->map(function ($i) {
-                        $ordered  = (int)($i->ordered_qty ?? 0);
-                        $received = (int)($i->received_qty ?? 0);
-                        return [
-                            'sku'         => (string)$i->product_sku,
-                            'name'        => (string)$i->product_name,
-                            'ordered_qty' => $ordered,
-                            'received_qty'=> $received,
-                            'diff'        => $received - $ordered,
-                        ];
-                    })
-                    ->values()
-                    ->toArray();
-
-                // Novos itens marcados na receção
-                $newItems = $receiving->items
-                    ->where('is_new', 1)
-                    ->map(function ($i) {
-                        return [
-                            'sku'          => (string)$i->product_sku,
-                            'name'         => (string)$i->product_name,
-                            'received_qty' => (int)($i->received_qty ?? 0),
-                        ];
-                    })
-                    ->values()
-                    ->toArray();
-
-                // Meta/summary
-                $summary = [
-                    'supplier_name' => $receiving->supplier?->name ?? 'Fornecedor',
-                    'brands'        => $brands,
-                    'meta'          => [
-                        'order_id'        => $receiving->order_id,
-                        'receiving_id'    => $receiving->id,
-                        'received_at'     => optional($receiving->received_at)->format('Y-m-d H:i'),
-                        'received_by_name'=> optional($receiving->receivedBy ?? null, function ($u) { return $u->name ?? null; }) ?? (auth()->user()->name ?? 'Utilizador'),
-                        'notes'           => $receiving->notes,
-                    ],
-                ];
-
-                // ===== Gerar ficheiro Excel com lotes + validades desta receção =====
-
-                //  relações carregadas
-                $receiving->loadMissing(['supplier', 'items.brand', 'items.batches']);
-
-                // Pasta por mês, por ex.: receivings/2025_12
-                $folder = 'receivings/' . Carbon::now()->format('Y_m');
-
-                if (!Storage::disk('public')->exists($folder)) {
-                    Storage::disk('public')->makeDirectory($folder);
-                }
-
-                $supplierSlug = Str::slug($receiving->supplier?->name ?? 'fornecedor', '_');
-                $date = Carbon::now()->format('Y-m-d');
-                $filename = "rececao_{$supplierSlug}_{$date}_{$receiving->id}.xlsx";
-
-                $filePath = "{$folder}/{$filename}"; // caminho relativo no disk 'public'
-
-                // Cria o Excel
-                Excel::store(new ReceivingExport($receiving), $filePath, 'public');
-                    
-
-                $settings = AppSetting::first();
-                if ($settings) {
-                    config([
-                        'mail.mailers.smtp.host'       => $settings->smtp_host,
-                        'mail.mailers.smtp.port'       => $settings->smtp_port,
-                        'mail.mailers.smtp.username'   => $settings->smtp_user,
-                        'mail.mailers.smtp.password'   => $settings->smtp_password,
-                        'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
-                        'mail.from.address'            => $settings->smtp_from_address,
-                        'mail.from.name'               => $settings->smtp_from_name,
-                    ]);
-                }
-
-                // Destinatários do email
-                // $to = collect(json_decode($settings->notification_to ?? '[]', true))
-                //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                //     ->values()
-                //     ->toArray();
-
-                // $cc = collect(json_decode($settings->notification_cc ?? '[]', true))
-                //     ->filter(fn($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-                //     ->values()
-                //     ->toArray();
-
-                // Destinatarios calculados acima conforme selecção do formulario , em vez de enviar para todos.
-                
-                // Enviar email
-                try {
-                    Mail::to($to)
-                        ->cc($cc)
-                        ->send(new ReceivingFinalizedMail(
-                            $summary,
-                            $divergences,
-                            $newItems,
-                            $filePath   // o caminho do Excel
-                        ));
-                } catch (\Throwable $mailEx) {
-                    \Log::error('Falha no envio de email de receção concluída', [
-                        'receiving_id' => $receiving->id,
-                        'error'        => $mailEx->getMessage(),
-                    ]);
-                }
-
-
-            } catch (\Throwable $e) {
-                return back()->with('error', 'Falha ao criar documento no ERP: ' . $e->getMessage());
-            }
-
+            $receiving->refresh();
+            $this->sendReceivingCompletion($receiving, $to, $cc);
 
             return redirect()
                 ->route('receivings.pending')
-                ->with('success', 'Entrada finalizada e arquivada com sucesso.');
-        } catch (\Exception $e) {
+                ->with('success', 'Entrada finalizada e inserida no Sage com sucesso.');
+        } catch (\Throwable $e) {
+            if ($sageAccepted) {
+                Receiving::whereKey($receiving->id)
+                    ->whereIn('erp_submission_status', ['submitting', 'uncertain'])
+                    ->update(['erp_submission_status' => 'uncertain']);
+
+                $message = 'O Sage confirmou o documento, mas a receção não ficou consolidada localmente. '
+                    . 'Não repita a operação; confirme o documento no Sage e contacte o suporte.';
+            } else {
+                Receiving::whereKey($receiving->id)
+                    ->where('erp_submission_status', 'submitting')
+                    ->update(['erp_submission_status' => 'failed']);
+
+                $message = $e->getMessage() ?: 'Não foi possível finalizar a receção.';
+            }
+
             return back()
-                ->with('error', $e->getMessage() ?: 'Ocorreu um erro inesperado. Contace o suporte.');
+                ->withInput()
+                ->with('error', $message);
         }
     }
-
 
     // GET: formulário de pesquisa para adicionar produto extra à receção
     public function searchSingle(Request $request, Receiving $receiving, ErpController $erpController)
@@ -634,6 +630,10 @@ class ReceivingController extends Controller
 
     public function addSingle(Request $request, Receiving $receiving)
     {
+        if ($this->isErpLocked($receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
+
         $request->validate([
             'item_sku'      => 'required|string',
             'quantity'      => 'required|integer|min:0',
@@ -693,13 +693,27 @@ class ReceivingController extends Controller
 
     public function addSingleScanner(Request $request, Receiving $receiving)
     {
+        if ($this->isErpLocked($receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
+
         $request->validate([
             'item_sku'      => 'required|string',
             'quantity'      => 'required|integer|min:0',
             'product_name'  => 'required|string',
             'batch_number'  => 'required|string|max:255',
             'expiry_date'   => 'required|date|after:today',
-            'is_new'        => 'nullable|boolean', 
+            'is_new'        => 'nullable|boolean',
+            'fx_currency'   => 'required_if:is_new,1|nullable|in:EUR,USD',
+            'fx_rate_to_eur' => [
+                'required_if:is_new,1',
+                'nullable',
+                'numeric',
+                'gt:0',
+                'regex:/^\d+(?:\.\d{1,12})?$/',
+            ],
+            'fx_source_unit_price' => 'required_if:is_new,1|nullable|numeric|min:0',
+            'fx_unit_price_eur' => 'required_if:is_new,1|nullable|numeric|min:0',
         ]);
 
         try {
@@ -721,10 +735,16 @@ class ReceivingController extends Controller
                     $totalQty = $item->batches()->sum('quantity');
                     $item->update(['received_qty' => $totalQty]);
 
-                    // se este scan marcou como novo, mantém a flag a 1
+                    // Se este scan criou o artigo no Sage, guarda também a base
+                    // cambial mesmo quando o item já existia na encomenda.
                     if ($request->boolean('is_new')) {
-                        $item->is_new = 1;
-                        $item->save();
+                        $item->update([
+                            'is_new' => 1,
+                            'fx_currency' => $request->input('fx_currency', 'EUR'),
+                            'fx_rate_to_eur' => $request->input('fx_rate_to_eur'),
+                            'fx_source_unit_price' => $request->input('fx_source_unit_price'),
+                            'fx_unit_price_eur' => $request->input('fx_unit_price_eur'),
+                        ]);
                     }
                 } else {
                     // Cria novo item e primeiro lote
@@ -737,7 +757,11 @@ class ReceivingController extends Controller
                         'brand_id'        => $request->brand_id ?? null,
                         'ordered_qty'     => 0,
                         'received_qty'    => $request->quantity,
-                        'is_new'          => (int) $request->input('is_new', 0), 
+                        'is_new'          => (int) $request->input('is_new', 0),
+                        'fx_currency'     => $request->input('fx_currency', 'EUR'),
+                        'fx_rate_to_eur'  => $request->input('fx_rate_to_eur'),
+                        'fx_source_unit_price' => $request->input('fx_source_unit_price'),
+                        'fx_unit_price_eur' => $request->input('fx_unit_price_eur'),
                     ]);
 
                     $item->batches()->create([
@@ -758,6 +782,10 @@ class ReceivingController extends Controller
 
     public function destroyItem(ReceivingItem $item)
     {
+        if ($this->isErpLocked($item->receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
+
         // Só permite apagar se for um item extra (adicionado manualmente)
         if ($item->order_item_id !== NULL) {
             return redirect()->back()->with('error', 'Não é possível remover itens que pertencem ao pedido original.');
@@ -770,6 +798,10 @@ class ReceivingController extends Controller
 
     public function destroyBatch(ReceivingBatch $batch)
     {
+        if ($this->isErpLocked($batch->receivingItem->receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
+
         try {
             DB::transaction(function () use ($batch) {
                 $item = $batch->receivingItem;
@@ -792,6 +824,10 @@ class ReceivingController extends Controller
 
    public function destroy(Receiving $receiving)
     {
+        if ($this->isErpLocked($receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
+
         try {
             DB::transaction(function () use ($receiving) {
                 // Elimina os itens associados
@@ -809,6 +845,13 @@ class ReceivingController extends Controller
 
     public function storeBatch(Request $request, ReceivingItem $item)
     {
+        if ($this->isErpLocked($item->receiving)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'A receção está bloqueada para validação ou já foi finalizada no Sage.',
+            ], 409);
+        }
+
         $validated = $request->validate([
             'quantity'      => 'required|integer|min:0',
             'batch_number'  => 'required|string|max:255',
@@ -830,6 +873,9 @@ class ReceivingController extends Controller
 
     public function createProduct(Request $request, Receiving $receiving, ErpController $erpController)
     {
+        if ($this->isErpLocked($receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
 
         $suppliers = Supplier::orderBy('name')->get();
         $brands = Brand::orderBy('name')->get();
@@ -839,9 +885,37 @@ class ReceivingController extends Controller
 
     public function createAddProduct(Request $request, Receiving $receiving, ErpController $erpController)
     {
+        if ($this->isErpLocked($receiving)) {
+            return back()->with('error', 'A receção está bloqueada para validação ou já foi finalizada no Sage.');
+        }
 
-        $suppliers = Supplier::orderBy('name')->get();
-        $brands = Brand::orderBy('name')->get();
+        $validated = $request->validate([
+            'item_sku' => ['required', 'string', 'max:255'],
+            'bar_code' => ['required', 'string', 'max:255'],
+            'product_description' => ['required', 'string', 'max:49'],
+            'product_full_description' => ['required', 'string', 'max:255'],
+            'pc' => ['required', 'numeric', 'min:0'],
+            'moedaId' => ['required', 'in:EUR,USD'],
+            'taxaCambio' => [
+                'required_if:moedaId,USD',
+                'nullable',
+                'numeric',
+                'gt:0',
+                'regex:/^\d+(\.\d{1,12})?$/',
+            ],
+            'TaxableGroupID' => ['required', 'in:1,2,3,4'],
+            'supplier_id' => ['required', 'exists:suppliers,id'],
+            'brand_id' => ['required', 'exists:brands,id'],
+            'quantity' => ['required', 'integer', 'min:1'],
+            'batch_number' => ['required', 'string', 'max:255'],
+            'expiry_date' => ['required', 'date', 'after:today'],
+        ]);
+
+        $currency = strtoupper($validated['moedaId']);
+        $rate = app(ReceivingFxCalculator::class)->normalizeRate(
+            $validated['taxaCambio'] ?? null,
+            $currency,
+        );
        
         try {
         
@@ -854,21 +928,21 @@ class ReceivingController extends Controller
             $product =[];
             
             // buscar erp_id correspondentes (ignora soft-deleted)
-            $supplierErpId = Supplier::whereKey($request['supplier_id'])->value('erp_id');
-            $brandErpId    = Brand::whereKey($request['brand_id'])->value('erp_id');
+            $supplierErpId = Supplier::whereKey($validated['supplier_id'])->value('erp_id');
+            $brandErpId    = Brand::whereKey($validated['brand_id'])->value('erp_id');
 
             //dd($request);
-            $product['ItemID'] = $request['item_sku'];
-            $product['Description'] = $request['product_full_description'];
-            $product['ShortDescription'] = $request['product_description'];
+            $product['ItemID'] = $validated['item_sku'];
+            $product['Description'] = $validated['product_full_description'];
+            $product['ShortDescription'] = $validated['product_description'];
             $product['ItemType'] = 0;
-            $product['BarCode'] = $request['bar_code'];
+            $product['BarCode'] = $validated['bar_code'];
             $product['BarCodeType'] = 0;
             $product['UnitOfSaleID'] = "UNI";
-            $product['TaxableGroupID'] = $request['TaxableGroupID'];
-            $product['pc'] = !empty($request['pc']) ? $request['pc'] : 0;
-            $product['moedaId'] = $request['moedaId'];
-            $product['taxaCambio'] = $request['taxaCambio'];
+            $product['TaxableGroupID'] = $validated['TaxableGroupID'];
+            $product['pc'] = $validated['pc'];
+            $product['moedaId'] = $currency;
+            $product['taxaCambio'] = $rate;
             $product['SupplierID'] = $supplierErpId;
             $product['FamilyID'] = $brandErpId;
 
@@ -899,26 +973,50 @@ class ReceivingController extends Controller
             //O pedido para o inserir na receção com lote
 
             $newRequest = new Request([
-                'item_sku'      => $request['item_sku'],
-                'quantity'      => $request['quantity'],
-                'product_name'  => $request['product_full_description'],
-                'batch_number'  => $request['batch_number'],
-                'expiry_date'   => $request['expiry_date'],
-                'supplier_id'   => $request['supplier_id'],
-                'brand_id'      => $request['brand_id'],    
-                'bar_code'      => $request['bar_code'],    
+                'item_sku'      => $validated['item_sku'],
+                'quantity'      => $validated['quantity'],
+                'product_name'  => $validated['product_full_description'],
+                'batch_number'  => $validated['batch_number'],
+                'expiry_date'   => $validated['expiry_date'],
+                'supplier_id'   => $validated['supplier_id'],
+                'brand_id'      => $validated['brand_id'],
+                'bar_code'      => $validated['bar_code'],
                 'is_new'        => 1,
+                'fx_currency'   => $currency,
+                'fx_rate_to_eur' => $rate,
+                'fx_source_unit_price' => $validated['pc'],
+                'fx_unit_price_eur' => $result['payload']['pc'],
                 ]);
 
             $this->addSingleScanner($newRequest, $receiving);
 
+            $savedNewItem = $receiving->items()
+                ->where('product_sku', $validated['item_sku'])
+                ->first();
+
+            if (! $savedNewItem || $savedNewItem->fx_unit_price_eur === null) {
+                return redirect()->back()->with(
+                    'error',
+                    'O produto foi criado no Sage, mas não ficou associado à receção. '
+                    . 'Contacte o suporte antes de repetir.'
+                );
+            }
+
+            $receiving->update([
+                'fx_currency' => $currency,
+                'fx_rate_to_eur' => $rate,
+                'fx_preview' => null,
+                'fx_preview_token' => null,
+                'fx_previewed_at' => null,
+            ]);
+
 
              try {
                 app(WooController::class)->createFromArray([
-                    'name'    => $request['product_full_description'],
-                    'sku'     => $request['item_sku'],
-                    'barcode' => $request['bar_code'] ?? null,
-                    'tax_group_id'  => $request['TaxableGroupID'],
+                    'name'    => $validated['product_full_description'],
+                    'sku'     => $validated['item_sku'],
+                    'barcode' => $validated['bar_code'] ?? null,
+                    'tax_group_id'  => $validated['TaxableGroupID'],
                 ]);
                 $wooOk = true;
             } catch (\Throwable $e) {
@@ -937,6 +1035,140 @@ class ReceivingController extends Controller
                 return redirect()->back()->with('error', 'Ocorreu um erro inesperado. Contacte o suporte.');
         }
 
+    }
+
+    private function erpDocumentReference(array $result): ?string
+    {
+        $reference = data_get($result, 'data.document')
+            ?? data_get($result, 'data.documentNumber')
+            ?? data_get($result, 'data.DocumentNumber')
+            ?? data_get($result, 'data.reference')
+            ?? data_get($result, 'data.id');
+
+        return $reference !== null ? (string) $reference : null;
+    }
+
+    private function isErpLocked(Receiving $receiving): bool
+    {
+        return $receiving->received_at !== null
+            || in_array(
+                $receiving->erp_submission_status,
+                ['submitting', 'uncertain', 'submitted'],
+                true,
+            );
+    }
+
+    private function sendReceivingCompletion(Receiving $receiving, array $to, array $cc): void
+    {
+        try {
+            $receiving->load([
+                'supplier',
+                'receiver',
+                'items.brand',
+                'items.batches',
+            ]);
+
+            $brands = $receiving->items
+                ->pluck('brand.name')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $divergences = $receiving->items
+                ->filter(fn ($item) => $item->order_item_id !== null
+                    && (int) $item->ordered_qty !== (int) $item->received_qty)
+                ->map(function ($item) {
+                    $ordered = (int) ($item->ordered_qty ?? 0);
+                    $received = (int) ($item->received_qty ?? 0);
+
+                    return [
+                        'sku' => (string) $item->product_sku,
+                        'name' => (string) $item->product_name,
+                        'ordered_qty' => $ordered,
+                        'received_qty' => $received,
+                        'diff' => $received - $ordered,
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $newItems = $receiving->items
+                ->where('is_new', true)
+                ->map(fn ($item) => [
+                    'sku' => (string) $item->product_sku,
+                    'name' => (string) $item->product_name,
+                    'received_qty' => (int) ($item->received_qty ?? 0),
+                ])
+                ->values()
+                ->all();
+
+            $summary = [
+                'supplier_name' => $receiving->supplier?->name ?? 'Fornecedor',
+                'brands' => $brands,
+                'meta' => [
+                    'order_id' => $receiving->order_id,
+                    'receiving_id' => $receiving->id,
+                    'received_at' => $receiving->received_at?->format('Y-m-d H:i'),
+                    'received_by_name' => $receiving->receiver?->name
+                        ?? auth()->user()?->name
+                        ?? 'Utilizador',
+                    'notes' => $receiving->notes,
+                    'currency' => $receiving->fx_currency,
+                    'fx_rate_to_eur' => $receiving->fx_rate_to_eur,
+                    'erp_document_reference' => $receiving->erp_document_reference,
+                ],
+            ];
+
+            $folder = 'receivings/' . Carbon::now()->format('Y_m');
+            $filePath = null;
+
+            try {
+                if (! Storage::disk('public')->exists($folder)) {
+                    Storage::disk('public')->makeDirectory($folder);
+                }
+
+                $supplierSlug = Str::slug($receiving->supplier?->name ?? 'fornecedor', '_');
+                $date = Carbon::now()->format('Y-m-d');
+                $filename = "rececao_{$supplierSlug}_{$date}_{$receiving->id}.xlsx";
+                $filePath = "{$folder}/{$filename}";
+
+                Excel::store(new ReceivingExport($receiving), $filePath, 'public');
+            } catch (\Throwable $exportException) {
+                \Log::error('Falha ao gerar Excel da receção concluída', [
+                    'receiving_id' => $receiving->id,
+                    'error' => $exportException->getMessage(),
+                ]);
+            }
+
+            $settings = AppSetting::first();
+
+            if ($settings) {
+                config([
+                    'mail.mailers.smtp.host' => $settings->smtp_host,
+                    'mail.mailers.smtp.port' => $settings->smtp_port,
+                    'mail.mailers.smtp.username' => $settings->smtp_user,
+                    'mail.mailers.smtp.password' => $settings->smtp_password,
+                    'mail.mailers.smtp.encryption' => $settings->smtp_encryption,
+                    'mail.from.address' => $settings->smtp_from_address,
+                    'mail.from.name' => $settings->smtp_from_name,
+                ]);
+            }
+
+            Mail::to($to)
+                ->cc($cc)
+                ->send(new ReceivingFinalizedMail(
+                    $summary,
+                    $divergences,
+                    $newItems,
+                    $filePath,
+                ));
+        } catch (\Throwable $exception) {
+            \Log::error('Falha no pós-processamento da receção concluída', [
+                'receiving_id' => $receiving->id,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     public function history()

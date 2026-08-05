@@ -63,17 +63,26 @@
                             <input type="text" name="product_full_description" class="form-control" required>
 
                             <label class="mt-3">Preço de Custo</label>
-                            <input type="number" step="0.001" name="pc" class="form-control" required>
+                            <input type="number" step="0.000001" min="0" name="pc" value="{{ old('pc') }}" class="form-control" required>
                             
                             <label for="moeda_id" class="form-label mt-3">Moeda</label>
                             <select name="moedaId" id="moeda_id" class="form-select" required>
-                                <option value="" disabled selected>Selecione...</option>
-                                <option value="EUR">EUR</option>
-                                <option value="USD">USD</option>
+                                <option value="EUR" @selected(old('moedaId', $receiving->fx_currency ?? 'EUR') === 'EUR')>EUR</option>
+                                <option value="USD" @selected(old('moedaId', $receiving->fx_currency ?? 'EUR') === 'USD')>USD</option>
                             </select>
 
-                            <label class="mt-3">Taxa de câmbio para EUR</label>
-                            <input type="number" step="0.000000000001" value="1" name="taxaCambio" class="form-control" required>
+                            <label for="taxa_cambio" class="mt-3">Taxa de câmbio</label>
+                            <input
+                                id="taxa_cambio"
+                                type="number"
+                                step="0.000000000001"
+                                min="0.000000000001"
+                                value="{{ old('taxaCambio', $receiving->fx_rate_to_eur ?? '1.000000000000') }}"
+                                name="taxaCambio"
+                                class="form-control"
+                                required
+                            >
+                            <div id="taxa_cambio_help" class="form-text">Para USD: 1 USD = taxa indicada em EUR.</div>
 
                             <label for="taxable_group_id" class="form-label mt-3">Taxa de IVA - Venda</label>
                             <select name="TaxableGroupID" id="taxable_group_id" class="form-select" required>
@@ -85,20 +94,23 @@
                             </select>
 
                             <label for="supplier_id" class="form-label mt-3">Fornecedor</label>
-                            <select name="supplier_id" id="supplier_id" class="form-select">
-                                <option value="" disabled selected>Selecione...</option>
+                            <select name="supplier_id" id="supplier_id" class="form-select" required>
+                                <option value="" disabled @selected(! old('supplier_id', $receiving->supplier_id))>Selecione...</option>
                                 @foreach ($suppliers as $supplier)
-                                    <option value="{{ $supplier['id'] }}">
+                                    <option
+                                        value="{{ $supplier['id'] }}"
+                                        @selected((int) old('supplier_id', $receiving->supplier_id) === (int) $supplier['id'])
+                                    >
                                         {{ $supplier['name'] }}
                                     </option>
                                 @endforeach
                             </select>
                         
                             <label for="brand_id" class="form-label mt-3">Marca</label>
-                            <select name="brand_id" id="brand_id" class="form-select">
-                                <option value="" disabled selected>Selecione...</option>
+                            <select name="brand_id" id="brand_id" class="form-select" required>
+                                <option value="" disabled @selected(! old('brand_id'))>Selecione...</option>
                                 @foreach ($brands as $brand)
-                                    <option value="{{ $brand['id'] }}">
+                                    <option value="{{ $brand['id'] }}" @selected((int) old('brand_id') === (int) $brand['id'])>
                                         {{ $brand['name'] }}
                                     </option>
                                 @endforeach
@@ -127,4 +139,32 @@
     </a>
   </div>
 </main>
+
+<script>
+    (() => {
+        const currency = document.getElementById('moeda_id');
+        const rate = document.getElementById('taxa_cambio');
+        const help = document.getElementById('taxa_cambio_help');
+
+        const syncCurrency = (clearDefault = false) => {
+            if (currency.value === 'EUR') {
+                rate.value = '1.000000000000';
+                rate.readOnly = true;
+                help.textContent = 'Em EUR não é aplicada conversão cambial.';
+                return;
+            }
+
+            rate.readOnly = false;
+
+            if (clearDefault && Number(rate.value) === 1) {
+                rate.value = '';
+            }
+
+            help.textContent = 'Introduza a taxa manual: 1 USD = taxa indicada em EUR.';
+        };
+
+        currency.addEventListener('change', () => syncCurrency(true));
+        syncCurrency(false);
+    })();
+</script>
 @endsection

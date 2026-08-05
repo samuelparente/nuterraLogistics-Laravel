@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\OrderController;
 use App\Http\Controllers\Admin\ReceivingController;
 use App\Http\Controllers\Admin\ListController;
 use App\Http\Controllers\Admin\ErpController;
+use App\Http\Controllers\Admin\ErpDocumentTestController;
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\Admin\BatchExpiryDatesController;
 
@@ -190,6 +191,10 @@ Route::middleware('auth')->group(function () {
             // Submeter receção
             Route::post('{order}/receive/{supplier}', [ReceivingController::class, 'store'])->name('store');
 
+            // Preparar preços e conversões antes de criar o documento Sage
+            Route::post('{order}/receive/{supplier}/preview', [ReceivingController::class, 'preview'])
+                ->name('preview');
+
             Route::post('{order}/receive/{supplier}/finalize', [ReceivingController::class, 'finalize'])->name('finalize');
 
             // View para adicionar um produto extra à entrada de mercadorias
@@ -306,6 +311,13 @@ Route::middleware('auth')->group(function () {
 
         // Buscar produtos filtrados por fornecedor e marca
         Route::get('/products', [ErpController::class, 'getProducts'])->name('products');
+
+        // Diagnóstico isolado da criação de um documento de compra no ERP de testes
+        Route::get('/test-document', [ErpDocumentTestController::class, 'show'])
+            ->name('test-document.show');
+
+        Route::post('/test-document', [ErpDocumentTestController::class, 'store'])
+            ->name('test-document.store');
 
     });
 

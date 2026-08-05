@@ -24,6 +24,36 @@
     ])
 
     <div class="card mt-3">
+        <div class="card-header"><h5 class="card-title mb-0">Documento e câmbio</h5></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small">Fornecedor</div>
+                    <strong>{{ $receiving->supplier?->name ?? '—' }}</strong>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small">Moeda</div>
+                    <strong>{{ $receiving->fx_currency ?? 'EUR' }}</strong>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small">Taxa usada</div>
+                    <strong>
+                        @if (($receiving->fx_currency ?? 'EUR') === 'USD')
+                            1 USD = {{ $receiving->fx_rate_to_eur }} EUR
+                        @else
+                            Sem conversão
+                        @endif
+                    </strong>
+                </div>
+                <div class="col-12 col-md-3">
+                    <div class="text-muted small">Documento Sage</div>
+                    <strong>{{ $receiving->erp_document_reference ?: '—' }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
         <div class="card-header"><h5 class="card-title mb-0">Produtos Recebidos</h5></div>
         <div class="card-body">
             <div class="table-responsive">
@@ -35,6 +65,8 @@
                             <th title="Nome"><i class="bi bi-card-text table-icons"></i></th>
                             <th title="Encomendado"><i class="bi bi-send-plus table-icons"></i></th>
                             <th title="Recebido"><i class="bi bi-clipboard-check table-icons"></i></th>
+                            <th>Preço de origem</th>
+                            <th>Preço enviado ao Sage</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -70,6 +102,16 @@
                                     @else
                                         <span class="text-muted small">Nenhum lote inserido.</span>
                                     @endif
+                                </td>
+                                <td class="text-nowrap">
+                                    @if ($item->fx_source_unit_price !== null)
+                                        {{ $item->fx_source_unit_price }} {{ $item->fx_currency ?? 'EUR' }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="text-nowrap">
+                                    {{ $item->fx_unit_price_eur !== null ? $item->fx_unit_price_eur . ' EUR' : '—' }}
                                 </td>
                             </tr>
                         @endforeach

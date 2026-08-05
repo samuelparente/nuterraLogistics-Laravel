@@ -12,6 +12,7 @@ use App\Models\Admin\Bonus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use App\Services\Receiving\ReceivingFxCalculator;
 
 class ErpController extends Controller
 {
@@ -366,14 +367,12 @@ class ErpController extends Controller
             ];
         }
 
-        // Se for em USD, converter o preço de custo para EUR
-        if (isset($product['moedaId']) && strtoupper($product['moedaId']) === 'USD') {
-            $taxaCambio = isset($product['taxaCambio']) && is_numeric($product['taxaCambio']) && $product['taxaCambio'] > 0
-                ? (float) $product['taxaCambio']
-                : 1.0;
-
-            $product['pc'] = round(((float) $product['pc']) * $taxaCambio, 12);
-        }
+        $currency = strtoupper((string) ($product['moedaId'] ?? 'EUR'));
+        $product['pc'] = app(ReceivingFxCalculator::class)->convertSourcePriceToEur(
+            $product['pc'] ?? 0,
+            $currency,
+            $product['taxaCambio'] ?? null,
+        );
 
         // Montar payload com base no $product
         $payload = [
@@ -404,7 +403,7 @@ class ErpController extends Controller
             "ProductCategory" => 1, // Define M - Mercadoria
         ];
 
-        dd($payload);
+        //dd($payload);
         // Enviar request
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -451,12 +450,31 @@ class ErpController extends Controller
 
         $url = config('sage.url_docs_venda');
 
-        /**
-    
-         * NOTA: clientID deve ser o ID do FORNECEDOR no ERP.
-         */
-        if (empty($orderReceived)) {
-            
+        $validator = Validator::make($orderReceived, [
+            'clientID' => ['required', 'integer', 'min:1'],
+            'salesmanID' => ['required', 'integer', 'min:1'],
+            'paymentID' => ['required', 'integer', 'min:1'],
+            'tenderID' => ['required', 'integer', 'min:1'],
+            'transSerial' => ['required', 'string'],
+            'transDocument' => ['required', 'string'],
+            'contractReferenceNumber' => ['nullable', 'string', 'max:255'],
+            'wharehouseID' => ['required', 'integer', 'min:1'],
+            'transactionTaxIncluded' => ['required', 'boolean'],
+            'lines' => ['required', 'array', 'min:1'],
+            'lines.*.itemID' => ['required', 'string'],
+            'lines.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'lines.*.price' => ['required', 'numeric', 'min:0'],
+            'lines.*.wharehouseId' => ['required', 'integer', 'min:1'],
+            'lines.*.unitOfSaleID' => ['required', 'string'],
+        ]);
+
+        if ($validator->fails()) {
+            return [
+                'success' => false,
+                'status' => 422,
+                'error' => 'Payload ERP inválido: ' . $validator->errors()->first(),
+                'payload' => $orderReceived,
+            ];
         }
 
         // Montar payload final
@@ -469,25 +487,29 @@ class ErpController extends Controller
         // da entrada de mercadorias
         
         $payload = [
-            "clientID"               => $orderReceived['clientID']     ?? 20,
-            "wharehouseID"           => $orderReceived['wharehouseID'] ?? 1,
-            "transDocument"          => $orderReceived['transDocument'] ?? "FGR",
-            "transactionTaxIncluded" => (bool) ($orderReceived['transactionTaxIncluded'] ?? false),
+            "clientID"               => (int) $orderReceived['clientID'],
+            "salesmanID"             => (int) $orderReceived['salesmanID'],
+            "paymentID"              => (int) $orderReceived['paymentID'],
+            "tenderID"               => (int) $orderReceived['tenderID'],
+            "transSerial"            => (string) $orderReceived['transSerial'],
+            "wharehouseID"           => (int) $orderReceived['wharehouseID'],
+            "transDocument"          => (string) $orderReceived['transDocument'],
+            "transactionTaxIncluded" => (bool) $orderReceived['transactionTaxIncluded'],
             "comments"               => $orderReceived['comments'] ?? "",
         ];
 
-        // (Opcional mas útil) envia também estes se vierem
-        if (isset($orderReceived['paymentID']))  { $payload['paymentID']  = (int) $orderReceived['paymentID']; }
-        if (isset($orderReceived['tenderID']))   { $payload['tenderID']   = (int) $orderReceived['tenderID']; }
-        if (isset($orderReceived['salesmanID'])) { $payload['salesmanID'] = (int) $orderReceived['salesmanID']; }
+        if (! empty($orderReceived['contractReferenceNumber'])) {
+            $payload['contractReferenceNumber'] = (string) $orderReceived['contractReferenceNumber'];
+        }
 
         // Normalizar e garantir tipos nas linhas
         $payload['lines'] = array_map(function ($l) {
             return [
                 "itemID"       => $l['itemID'],
                 "quantity"     => (float) $l['quantity'],
-                "price"        => (float) $l['price'],
-                "DiscountPercent" => (float) ($l['DiscountPercent'] ?? 0),
+                "price"        => (string) $l['price'],
+                "DiscountPercent" => (string) ($l['DiscountPercent'] ?? '0'),
+                "wharehouseId" => (int) $l['wharehouseId'],
                 "unitOfSaleID" => $l['unitOfSaleID'] ?? "UNI",
                 "propriedade1" => $l['propriedade1'] ?? null,   // obrigatório se o artigo usa propriedades
                 "validade1"    => $l['validade1'] ?? null,      // YYYY-MM-DD
@@ -496,6 +518,7 @@ class ErpController extends Controller
             ];
         }, $orderReceived['lines'] ?? []);
         
+        //dd($payload);
         // Enviar request
         try {
             $response = \Illuminate\Support\Facades\Http::withHeaders([
@@ -531,6 +554,39 @@ class ErpController extends Controller
                 'error'   => 'Erro: ' . $e->getMessage(),
                 'payload' => $payload,
             ];
+        }
+    }
+
+    public function getSupplierDocumentDefaults(int $supplierId): ?array
+    {
+        $query = "
+            SELECT TOP 1
+                PaymentID,
+                TenderID
+            FROM dbo.Supplier
+            WHERE SupplierID = {$supplierId}
+        ";
+
+        try {
+            $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $this->token,
+                    'Content-Type' => 'application/json',
+                ])
+                ->withoutVerifying()
+                ->post($this->endpoint, ['query' => $query]);
+
+            if (!$response->successful() || empty($response['data'][0])) {
+                return null;
+            }
+
+            $supplier = $response['data'][0];
+
+            return [
+                'paymentID' => isset($supplier['PaymentID']) ? (int) $supplier['PaymentID'] : null,
+                'tenderID' => isset($supplier['TenderID']) ? (int) $supplier['TenderID'] : null,
+            ];
+        } catch (\Throwable $e) {
+            return null;
         }
     }
 
@@ -756,16 +812,16 @@ class ErpController extends Controller
          *    - se taxIncluded = true e houver TaxIncludedPrice → usa TaxIncludedPrice
          *    - caso contrário → usa UnitPrice normal
          */
-        if ($taxIncluded && $taxIncludedPriceRaw !== null) {
-            $unitPrice = (float) $taxIncludedPriceRaw;
-        } else {
-            $unitPrice = (float) ($unitPriceRaw ?? 0);
-        }
+        $unitPrice = $taxIncluded && $taxIncludedPriceRaw !== null
+            ? (string) $taxIncludedPriceRaw
+            : (string) ($unitPriceRaw ?? '0');
 
         return [
             'Units'                  => $units !== null ? (float) $units : null,
             'UnitPrice'              => $unitPrice,
-            'DiscountPercent'        => $discountPercentRaw !== null ? (float) $discountPercentRaw : null,
+            'DiscountPercent'        => $discountPercentRaw !== null
+                ? (string) $discountPercentRaw
+                : null,
             'TransactionTaxIncluded' => $taxIncluded, // bool true/false, para usares no payload
         ];
     }

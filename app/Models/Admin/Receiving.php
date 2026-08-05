@@ -21,12 +21,27 @@ class Receiving extends Model
         'received_by',
         'notes',
         'files',
+        'fx_currency',
+        'fx_rate_to_eur',
+        'fx_preview',
+        'fx_preview_token',
+        'fx_previewed_at',
+        'erp_submission_status',
+        'erp_submission_key',
+        'erp_document_reference',
+        'erp_response',
+        'erp_submitted_at',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'received_at' => 'datetime',
         'files' => 'array',
+        'fx_rate_to_eur' => 'decimal:12',
+        'fx_preview' => 'array',
+        'fx_previewed_at' => 'datetime',
+        'erp_response' => 'array',
+        'erp_submitted_at' => 'datetime',
     ];
 
     // Relações
